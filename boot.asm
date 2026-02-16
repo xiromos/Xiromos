@@ -38,4 +38,4 @@ done_print:
 
 os_boot_msg: db 'Press Any Key To Boot...', 0x0d, 0x0a
 times 510 - ($ - $$) db 0
-dw 0xAA55
+dw 0xAA55            ;v1.0
