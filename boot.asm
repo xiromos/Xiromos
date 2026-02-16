@@ -46,4 +46,4 @@ done_print:
 os_boot_msg: db 'Press Any Key To Boot...', 0
 booting_msg: db 'Key Pressed. Booting...', 0
 times 510 - ($ - $$) db 0
-dw 0xAA55
+dw 0xAA55            ;v1.0
