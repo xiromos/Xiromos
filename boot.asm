@@ -6,50 +6,39 @@ start:
     xor ax, ax
     mov ds, ax      ;start adress of the data segment
     mov es, ax      ;start point of the extra segment
-    mov ax, 0x0000
     mov ss, ax
     mov sp, 0x7c00
-    mov [boot_drive], dl
+    ;mov [boot_drive], dl
     sti
     mov si, os_boot_msg
-    call print_loop
+    call print_start
     call key_input
     mov si, booting_msg
-    call print_loop
+    call print_start
     call load_kernel
 
-    mov ah, 0x0E
-    mov al, 'J'
-    int 0x10
-
-    jmp 0x1000:0x0000
-    hlt
+    jmp 0x500
 
 
 halt:
     jmp halt
 
 load_kernel:
-    mov ah, 0x02            ; BIOS read sector (function number)
-    mov al, 1               ; Anzahl Sektoren (ANPASSEN!)
+    mov ah, 0x02            ; BIOS reads sectors 
+    mov al, 8               ; amount of sectors, the BIOS has to read
     mov ch, 0               ; Cylinder
     mov dh, 0               ; Head
-    mov cl, 2               ; ab Sektor 2
-    mov dl, [boot_drive]    ; erste Festplatte
-    mov bx, 0x0000          ; Offset
-    mov ax, 0x1000
-    mov es, ax              ; Zielsegment 0x1000
+    mov cl, 2               ; number of the first sector
+    mov bx, 0x500           ; Offset
+    ;mov ax, 0x1000
+    ;mov es, ax              ; Zielsegment 0x1000
     int 0x13
-    ;test
-    mov ah, 0x0E
-    mov al, 'L'
-    int 0x10
-    ;test-end
     jc disk_error
     ret
 
 disk_error:
     mov si, disk_error_msg
+    mov di, 0xB800
     call print_loop
     jmp $
 
@@ -61,7 +50,8 @@ key_input:
     int 0x10
     ret  
 
-
+print_start:
+    mov ah, 0x0e
 print_loop:
     lodsb           ;loads the next byte of os_boot_msg
     or al, al
