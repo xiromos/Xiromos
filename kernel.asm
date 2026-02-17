@@ -2,17 +2,33 @@
 bits 16
 
 start:
-    ;BIOS needs to print somethin the (AH)function-number(0x0e) and the (AL)ASCII charachter,
-    ;optional (BH) number of sites, (BL) color
-    ;mov ah, 0x09    ;0x0e -> Teletype Output // 0x09 graphical mode
-    ;mov al, 'X'     ;AX = 16bit, ah and al are required for bios interrupt 0x10
-    ;mov bh, 0       ;page number
-    ;mov bl, 0x1e    ;color
-    ;mov cx, 1       ;amount
-    ;int 0x10
-    mov ah, 0x0e
-    mov al, 'x'
+    mov ax, cs
+    mov ds, ax
+    mov es, ax
+
+    mov ax, 0x03
     int 0x10
+
+    mov si, welcome_msg
+    call print_loop
+    call user_input
 
 hang:
     jmp hang
+
+print_loop:
+    lodsb           ;loads next byte
+    or al, al
+    jz done_print
+    mov ah, 0x0e
+    mov bh, 0
+    int 0x10
+    jmp print_loop
+
+done_print:
+    ret
+
+user_input:
+
+
+welcome_msg: db 'Kernel Bootet Successfully. Type "help" For Help.', 0x0d, 0x0a, 0
