@@ -1,3 +1,11 @@
+;================================================
+;Xiromos Kernel test version
+;by Technodon
+;credits: This project wouldnt be possible without this wonderful tutorial:
+;https://osdev.netlify.app/x16/mini_kernel.html
+;================================================
+
+
 bits 16
 [org 0x500]
 
@@ -114,6 +122,11 @@ exec_cmd:
     call compare_str
     je color_green
 
+    mov si, command_buffer
+    mov di, load_str
+    call compare_str
+    je load_program
+
 
     ; if unknown command
     call unknown_cmd
@@ -175,6 +188,74 @@ unknown_cmd:
     mov si, unknown_msg
     call print_start
     ret
+load_program:
+    mov si, load_prompt
+    call print_start
+    call read_number
+
+    mov si, mt
+
+    call start_program
+    ret
+read_number:
+    mov di, number_buffer
+    xor cx, cx
+read_loop_load:
+    mov ah, 0x00
+    int 0x16
+    cmp al, 0x0d
+    je done_read
+    cmp al, 0x08
+    je handle_backspace
+    cmp cx, 5
+    jge read_loop_load
+    cmp al, '0'
+    jb read_loop_load    ;?
+    cmp al, '9'
+    ja read_loop_load
+    stosb
+    mov ah, 0x0e
+    mov bl, 0x04
+    int 0x10
+    inc cx
+    jmp read_loop_load
+done_read:
+    mov byte [di], 0    ; Завершаем строку нулевым символом
+    call convert_to_num
+    ret
+convert_to_num:
+    mov si, number_buffer
+    xor ax, ax
+    xor cx, cx
+convert_loop:
+    lodsb
+    cmp al, 0
+    je done_convert
+    add al, '0'
+    imul cx, 10
+    add cx, ax
+    jmp convert_loop
+done_convert:
+    mov [sector_number], cx     ;save number
+    ret
+start_program:
+    pusha
+    mov ah, 0x02
+    mov al, 1            ;function to read sector
+    mov ch, 0            ;cylinder
+    mov dh, 0
+    mov cl, [sector_number] ;number of sector
+    mov bx, 800h         ;adress where to load
+    int 0x13
+    jc disk_error
+    jmp 800h
+    popa 
+    ret
+disk_error:
+    mov si, disk_error_msg
+    call print_start
+    popa
+    ret
 ;================================
 ; Strings and Buffers
 ;================================
@@ -197,4 +278,14 @@ return_msg: db 'To Return Standard Color-Theme Type "clear"', 0
 
 green: db 'green', 0
 prompt: db '> ', 0
+
+load_prompt: db 'Enter sector number: ', 0
+load_str: db 'load', 0
+
+mt db 0x0d, 0x0a, 0
+
+disk_error_msg: db 'Disk Read Error Occured...', 0x0d, 0x0a, 0
+
 command_buffer db 25 dup(0)
+number_buffer db 7 dup(0)
+sector_number dw 0
