@@ -1,3 +1,8 @@
+;================================================
+;Xiromos Bootloader, test version
+;by Technodon
+;================================================
+
 [org 0x7c00]
 bits 16
 
@@ -10,9 +15,11 @@ start:
     mov sp, 0x7c00
     ;mov [boot_drive], dl
     sti
+
     mov si, os_boot_msg
     call print_start
     call key_input
+
     mov si, booting_msg
     call print_start
     call load_kernel
@@ -63,7 +70,11 @@ print_loop:
 
     
 done_print:
-    ret       
+    ret  
+
+;========================================
+;variables and buffer
+;========================================
 
 boot_drive db 0
 os_boot_msg: db 'Press Any Key To Boot...', 0x0d, 0x0a, 0
@@ -71,3 +82,4 @@ booting_msg: db 0x0d, 0x0a, 'Key Pressed. Booting...', 0
 disk_error_msg: db 'Disk Error Occured', 0
 times 510 - ($ - $$) db 0
 dw 0xAA55            ;v1.0
+;================================================
