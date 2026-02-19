@@ -17,7 +17,7 @@ start:
 print_start:
     mov ah, 0x0e
     mov bh, 0
-    mov bl, 0x04
+    mov bl, 0x0f
 print_loop:
     lodsb
     cmp al, 0
