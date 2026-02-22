@@ -11,8 +11,9 @@
 <p>clear: clears screen</p>
 <p>green: turns background to green [very buggy, not completed]</p>
 <p>cyan: turns background to cyan [very buggy, not completed]</p>
-<p>load: input a sector where a program is located to execute it[i am working on this command, right now its</p>
-<p>not working]</p>
+<p>load: input a sector where a program is located to execute it</p>
+<p>      input 9 after executing command 'load' to enter the calculator program</p>
+<p>      input 10 after executing load command to show hardware information</p>
 <p>> _</p>
 
 
