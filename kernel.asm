@@ -61,7 +61,7 @@ print_newline:
 
 read_command:
     mov di, command_buffer  ;SI - Quelle, DI - Ziel
-    xor cx, cx
+    xor cx, cx              ;?
 read_loop:
     mov ah, 0x00
     int 0x16            ;call BIOS write function
@@ -95,6 +95,7 @@ handle_backspace:
 read_end:
     mov byte [di], 0
     ret
+
 exec_cmd:
     ; compare input with valid commands
     mov si, command_buffer
@@ -126,6 +127,27 @@ exec_cmd:
     mov di, load_str
     call compare_str
     je load_program
+
+    mov si, command_buffer
+    mov di, ram_str
+    call compare_str
+    je display_ram
+
+    mov si, command_buffer
+    mov di, reboot_str
+    call compare_str
+    je reboot
+
+    mov si, command_buffer
+    mov di, calc_str
+    call compare_str
+    je start_calc
+
+    mov si, command_buffer
+    mov di, hwinfo_str
+    call compare_str
+    je start_hwinfo
+
 
 
     ; if unknown command
@@ -233,6 +255,12 @@ r_l_handle_backspace:
     int 0x10
     jmp read_loop_load
 done_read:
+    cmp [number_buffer], '1'
+    je read_loop_load
+
+    cmp [number_buffer], '2'
+    je read_loop_load
+
     mov byte [di], 0    ; Завершаем строку нулевым символом
     call convert_to_num
     ret
@@ -254,21 +282,113 @@ done_convert:
 start_program:
     pusha
     mov ah, 0x02        ;function to read sector
-    mov al, 1            
+    mov al, 2           ; how much sectors to load? 
     mov ch, 0            ;cylinder
     mov dh, 0
     mov cl, [sector_number] ;number of sector
-    mov bx, 800h         ;adress where to load
+    mov bx, 1000h         ;adress where to load
     int 0x13
     jc disk_error
-    jmp 800h
     popa 
+    jmp 1000h
     ret
 disk_error:
     mov si, disk_error_msg
+    mov di, 0              ; position
+    mov bl, 0x04           ; color - red
     call print_start
+    call print_newline
     popa
     ret
+print_color_string:
+    push ax
+    push si
+    push di
+    push es
+
+    mov ax, 0xB800
+    mov es, ax
+
+.next_char:
+    lodsb              ; AL = nächstes Zeichen
+    cmp al, 0
+    je .done
+
+    mov [es:di], al    ; Zeichen schreiben
+    mov [es:di+1], bl  ; Farbe schreiben
+
+    add di, 2          ; nächstes Zeichenfeld
+    jmp .next_char
+
+.done:
+    pop es
+    pop di
+    pop si
+    pop ax
+    ret
+display_ram:
+    int 0x12
+    mov [hwinfo_buf], ax
+    mov si, hwinfo_buf
+    xor ax, ax
+    xor cx, cx
+    mov bx, 10          ;to convert a num to ascii, you need to divide it by 10
+    call convert_to_ascii
+    call print_newline
+    ret
+convert_to_ascii:
+    xor dx, dx
+    div bx
+    add dl, '0'
+    push dx             ;save
+    inc cx             
+    cmp ax, 0
+    je convert_to_ascii_ret
+    jmp convert_to_ascii
+;mov cx 0
+;then we increase for every number cx
+;when looping, loop function does intern dec cx
+;if cx = 0, loop stops working
+
+convert_to_ascii_ret:
+    pop dx
+    mov al, dl
+    mov ah, 0x0e
+    int 0x10
+    loop convert_to_ascii_ret
+    ret
+reboot:
+    mov ax, 0x03
+    int 0x10
+    ;jmp 0x7c00
+    int 0x19
+start_calc:
+    pusha
+    mov ah, 0x02        ;function to read sector
+    mov al, 2           ; how much sectors to load? 
+    mov ch, 0            ;cylinder
+    mov dh, 0
+    mov cl, 5            ;number of sector
+    mov bx, 1000h         ;adress where to load
+    int 0x13
+    jc disk_error
+    popa 
+    jmp 1000h
+    ret
+start_hwinfo:
+    pusha
+    mov ah, 0x02        ;function to read sector
+    mov al, 2           ; how much sectors to load? 
+    mov ch, 0            ;cylinder
+    mov dh, 0
+    mov cl, 10            ;number of sector
+    mov bx, 1000h         ;adress where to load
+    int 0x13
+    jc disk_error
+    popa 
+    jmp 1000h
+    ret  
+
 ;================================
 ; Strings and Buffers
 ;================================
@@ -280,7 +400,7 @@ os_name: db 'Xiromos Bootloader and Kernel v1.0', 0x0d, 0x0a, 0
 help_str: db 'help', 0
 clear_str: db 'clear', 0
 
-help_msg: db 'Commands: help[lists commands], clear[clear screen], green/cyan[change look]', 0x0D, 0x0A, 0
+help_msg: db 'Commands: ', '                              Programs: ', 0x0D, 0x0A, 'HELP [shows all commands]', '               CALC [calculator]', 0x0D, 0x0A, 'CLEAR [cleas the screen]', '                HWINFO [hardware-information]', 0x0D, 0x0A, 'GREEN/CYAN [change color]', 0x0D, 0x0A, 'VER [shows current version]', 0x0D, 0x0A, 'LOAD [start program]', 0x0D, 0x0A, 0
 unknown_msg: db 'Invalid command', 0x0D, 0x0A, 0
 
 ver_msg: db 'Xiromos Bootloader and Kernel Testversion', 0x0d, 0x0a, 0
@@ -297,8 +417,15 @@ load_str: db 'load', 0
 
 mt db 13, 10,  0
 
-disk_error_msg: db 'Disk Read Error Occured...', 0x0d, 0x0a, 0
+disk_error_msg: db 'Disk Read Error Occured...', 0
 
+reboot_str: db 'reboot', 0
+calc_str: db 'calc', 0
+
+ram_count: db ' KB', 0
+ram_str: db 'ram', 0
+hwinfo_str: db 'hwinfo', 0
 command_buffer db 25 dup(0)
 number_buffer db 7 dup(0)
 sector_number dw 0
+hwinfo_buf dw 0
