@@ -32,7 +32,7 @@ halt:
 
 load_kernel:
     mov ah, 0x02            ; BIOS reads sectors 
-    mov al, 8               ; amount of sectors, the BIOS has to read
+    mov al, 4               ; amount of sectors, the BIOS has to read
     mov ch, 0               ; Cylinder
     mov dh, 0               ; Head
     mov cl, 2               ; number of the first sector
