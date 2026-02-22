@@ -1,9 +1,10 @@
-[org 800h]
+[org 1000h]
 bits 16
 
 start:
     mov ax, 0x03            ;clear screen
     int 0x10
+
     mov si, welcome_msg     ;display welcome_message
     call print_start
     call print_newline
@@ -77,7 +78,7 @@ handle_backspace:
     mov ah, 0x0e
     mov al, 0x08
     int 0x10
-    mov al, '0'
+    mov al, ' '
     int 0x10
     mov al, 0x08
     int 0x10
@@ -159,7 +160,7 @@ calculate:
     call print_start
     call print_newline
 
-    mov si, num
+    mov si, [num]
     call print_start
     call print_newline
     call print_newline
