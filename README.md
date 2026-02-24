@@ -1,9 +1,9 @@
 
 <h1 class="title">README FILE</h1>
-<p>This Is The Xiromos Operating system</p>
-<p>Its A 16-Bit OS, Entirely Written In NASM</p>
-<p>The Operating System Is In Active Work, New Commands and Features Will Be Added Soon</p>
-<p>It contains the Xiromos Bootloader and the Xiromos Kernel, both are in alpha version 0.1</p>
+<p>This is the Xiromos operating system</p>
+<p>Its a 16-Bit OS, entirely written in NASM</p>
+<p>The operating system is in active work, new commands and features will be added soon</p>
+<p>It contains the Xiromos Bootloader and the Xiromos Kernel, Color-Version</p>
 
 <h2>FEATURES/COMMANDS</h2>
 <p>help: shows existing commands</p>
