@@ -5,14 +5,18 @@ start:
     mov ax, 0x03
     int 0x10
 
+    ;call set_video_mode        doesnt working
+
     mov si, title_msg
     call print_start
     call print_newline
     call print_newline
-
     call detect_memory
     call detect_cpu
     call detect_cpu_features
+    call print_cores
+
+    call print_newline
     call detect_drives
     call print_newline
 
@@ -36,6 +40,11 @@ print_newline:
     mov al, 0x0d
     int 0x10
     mov al, 0x0a
+    int 0x10
+    ret
+set_video_mode:
+    ; VGA 640*480, 16 colors
+    mov ax, 0x12
     int 0x10
     ret
 detect_memory:
@@ -195,9 +204,37 @@ no_sse:
 no_sse2:
     call print_newline
     ret
+print_cores:
+    mov si, cores
+    call print_start
+    mov eax, 1
+    cpuid
+    ror ebx, 16
+    mov al, bl
+    call print_al
+    ret
+print_al:
+    mov ah, 0
+    mov dl, 10
+    div dl
+    add ax, '00'
+    mov dx, ax
+
+    mov ah, 0eh
+    mov al, dl
+    cmp dl, '0'
+    jz skip_fn
+    mov bl, 0x0F
+    int 10h
+skip_fn:
+    mov al, dh
+    mov bl, 0x0F
+    int 10h
+    ret
 quit:
     xor ah, ah
     int 0x16
+    clc
 
     jmp 500h
 
@@ -219,7 +256,7 @@ mem_base_str: db 'Base Memory: ', 0
 base_mem_kb dw 0
 ext_mem_kb dw 0
 k_str: db ' KB', 0
-M_str: db 'MB', 0
+M_str: db ' MB', 0
 
 hdd_label: db 'Number Of Harddrives: ', 0
 
@@ -233,6 +270,7 @@ fpu_str: db 'FPU ', 0
 mmx_str: db 'MMX ', 0
 sse_str: db 'SSE ', 0
 sse2_str: db 'SSE2 ', 0
+cores: db 'Cores: ', 0
 
 
 
