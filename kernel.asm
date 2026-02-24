@@ -1,7 +1,7 @@
 ;================================================
-;Xiromos Kernel test version
+;Xiromos Kernel Color-Version
 ;by Technodon
-;credits: This project wouldnt be possible without this wonderful tutorial:
+;credits: This project wouldnt be possible without this tutorial:
 ;https://osdev.netlify.app/x16/mini_kernel.html
 ;================================================
 
@@ -15,13 +15,14 @@ start:
     mov ax, 0x03
     int 0x10
 
+    call set_video_mode
+    
+    call print_logo
+
     ;print welcome_msg
     mov si, welcome_msg
-    call print_start
+    call print_string_green
 
-    ;print os_name
-    mov si, os_name
-    call print_start
     call shell
 
 hang:
@@ -39,9 +40,124 @@ print_loop:
 done_print:
     ret
 
+set_video_mode:
+    ; VGA 640*480, 16 colors
+    mov ax, 0x12
+    int 0x10
+    ret
+
+
+;===========================COLORED STRINGS===========================
+
+;--cyan--
+print_string_cyan:
+    mov ah, 0x0E
+    mov bl, 0x0B
+.print_char:
+    lodsb
+    cmp al, 0
+    je .done
+    int 0x10
+    jmp .print_char
+.done:
+    ret
+
+;--red--
+print_string_red:
+    mov ah, 0x0E
+    mov bl, 0x0C
+.print_char:
+    lodsb
+    cmp al, 0
+    je .done
+    int 0x10
+    jmp .print_char
+.done:
+    ret
+
+;--green--
+print_string_green:
+    mov ah, 0x0E
+    mov bl, 0x0A
+.print_char:
+    lodsb
+    cmp al, 0
+    je .done
+    int 0x10
+    jmp .print_char
+.done:
+    ret
+
+;--yellow--
+print_string_yellow:
+    mov ah, 0x0E
+    mov bl, 0x0E
+.print_char:
+    lodsb
+    cmp al, 0
+    je .done
+    int 0x10
+    jmp .print_char
+.done:
+    ret
+
+;--darkblue--
+print_string_darkblue:
+    mov ah, 0x0E
+    mov bl, 0x01
+.print_char:
+    lodsb
+    cmp al, 0
+    je .done
+    int 0x10
+    jmp .print_char
+.done:
+    ret
+
+;--white--
+print_string_white:
+    mov ah, 0x0E
+    mov bl, 0x0f
+.print_char:
+    lodsb
+    cmp al, 0
+    je .done
+    int 0x10
+    jmp .print_char
+.done:
+    ret
+;--dark-red--
+print_string_darkred:
+    mov ah, 0x0E
+    mov bl, 0x04
+.print_char:
+    lodsb
+    cmp al, 0
+    je .done
+    int 0x10
+    jmp .print_char
+.done:
+    ret
+
+;===============================================================
+
+print_logo:
+    mov si, header1
+    call print_string_cyan
+    call print_newline
+
+    mov si, os_name
+    call print_string_cyan
+    call print_newline
+
+    mov si, header1
+    call print_string_cyan
+    call print_newline
+
+    ret
 shell:
     mov si, prompt
-    call print_start
+    call print_string_white
 
 ; ask user for input
     call read_command
@@ -173,6 +289,7 @@ help:
     ret
 clear:
     call clear_screen
+    call set_video_mode
     ret
 clear_screen:
     mov ax, 0x03
@@ -180,27 +297,34 @@ clear_screen:
     ret
 show_ver:
     mov si, ver_msg
-    call print_start
+    call print_string_cyan
+    call print_newline
     ret
 color_cyan:
+    mov ax, 0x03
+    int 0x10
+
     mov ah, 09h
     mov cx, 1000h
     mov bh, 0
     mov al, 20h
 
-    mov bl, 30h ; 30h = cyan, 20h = blue
+    mov bl, 30h ; 30h = cyan, 20h = green
     int 10h
     mov si, return_msg
     call print_start
     call print_newline
     ret
 color_green:
+    mov ax, 0x03
+    int 0x10
+
     mov ah, 09h
     mov cx, 1000h
     mov bh, 0
     mov al, 20h
 
-    mov bl, 20h ; 30h = cyan, 20h = blue
+    mov bl, 20h ; 30h = cyan, 20h = green
     int 10h
     mov si, return_msg
     call print_start
@@ -237,7 +361,18 @@ read_loop_load:
     ja read_loop_load
     stosb
     mov ah, 0x0e
-    mov bl, 0x1f
+    mov bl, 0x0a
+    cmp al, 'q'
+    je quit_load
+;    cmp al, '7'
+;    je print_green
+;    cmp al, '9'
+;    je print_green
+;    mov bl, 0x0c
+;    jmp go
+;print_green:
+;    mov bl, 0x0a
+;go:
     int 0x10
     inc cx
     jmp read_loop_load
@@ -255,6 +390,7 @@ r_l_handle_backspace:
     int 0x10
     jmp read_loop_load
 done_read:
+    call print_newline
     cmp [number_buffer], '1'
     je read_loop_load
 
@@ -294,68 +430,47 @@ start_program:
     ret
 disk_error:
     mov si, disk_error_msg
-    mov di, 0              ; position
-    mov bl, 0x04           ; color - red
-    call print_start
+    call print_string_red
     call print_newline
+    clc
     popa
     ret
-print_color_string:
-    push ax
-    push si
-    push di
-    push es
-
-    mov ax, 0xB800
-    mov es, ax
-
-.next_char:
-    lodsb              ; AL = nächstes Zeichen
-    cmp al, 0
-    je .done
-
-    mov [es:di], al    ; Zeichen schreiben
-    mov [es:di+1], bl  ; Farbe schreiben
-
-    add di, 2          ; nächstes Zeichenfeld
-    jmp .next_char
-
-.done:
-    pop es
-    pop di
-    pop si
-    pop ax
+quit_load:
     ret
 display_ram:
-    int 0x12
-    mov [hwinfo_buf], ax
-    mov si, hwinfo_buf
-    xor ax, ax
-    xor cx, cx
-    mov bx, 10          ;to convert a num to ascii, you need to divide it by 10
-    call convert_to_ascii
-    call print_newline
+    mov si, mem_base_str
+    call print_string_white
+    int 12h         ;interrupt to detect memory
+    mov [base_mem_kb], ax
+    call print_decimal
+    call print_k_suffix
     ret
-convert_to_ascii:
-    xor dx, dx
-    div bx
-    add dl, '0'
-    push dx             ;save
-    inc cx             
-    cmp ax, 0
-    je convert_to_ascii_ret
-    jmp convert_to_ascii
-;mov cx 0
-;then we increase for every number cx
-;when looping, loop function does intern dec cx
-;if cx = 0, loop stops working
 
-convert_to_ascii_ret:
-    pop dx
-    mov al, dl
+print_decimal:
+    pusha
+    mov cx, 0
+    mov ebx, 10
+.div_loop:
+    mov edx, 0
+    div ebx
+    push edx
+    inc cx
+    cmp eax, 0
+    jne .div_loop
+.print_loop:
+    pop eax
+    add al, '0'
     mov ah, 0x0e
     int 0x10
-    loop convert_to_ascii_ret
+    loop .print_loop
+    popa
+    ret
+print_k_suffix:
+    pusha
+    mov si, k_str
+    call print_string_white
+    call print_newline
+    popa
     ret
 reboot:
     mov ax, 0x03
@@ -368,7 +483,7 @@ start_calc:
     mov al, 2           ; how much sectors to load? 
     mov ch, 0            ;cylinder
     mov dh, 0
-    mov cl, 5            ;number of sector
+    mov cl, 7            ;number of sector
     mov bx, 1000h         ;adress where to load
     int 0x13
     jc disk_error
@@ -394,7 +509,18 @@ start_hwinfo:
 ;================================
 
 welcome_msg: db 'Kernel Loaded Successfully. Type "help" For Help.', 0x0d, 0x0a, 0
-os_name: db 'Xiromos Bootloader and Kernel v1.0', 0x0d, 0x0a, 0
+;header db 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB2, 0xB2, 0xB2, 0xB2, 0xB2, 0xB2, 0xDB, 0xDB, ' ', 'x16 PRos v0.6', ' ', 0xDB, 0xDB, 0xB2, 0xB2, 0xB2, 0xB2, 0xB2, 0xB2, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0
+os_name: db '| Xiromos Bootloader and Kernel Color-Version |', 0
+header1: db ' --------------------------------------------- ', 0
+
+str1: db '---       ---', 0
+str2: db '\  \    /   /', 0
+str3: db ' \  \  /   / ', 0
+str4: db '  \  \/   /  ', 0 
+str5: db '  /  /\   \  ', 0
+str6: db ' /  /  \   \ ', 0
+str7: db '/  /    \   \', 0
+str8: db '---      ----', 0 
 
 ;commands
 help_str: db 'help', 0
@@ -403,7 +529,7 @@ clear_str: db 'clear', 0
 help_msg: db 'Commands: ', '                              Programs: ', 0x0D, 0x0A, 'HELP [shows all commands]', '               CALC [calculator]', 0x0D, 0x0A, 'CLEAR [cleas the screen]', '                HWINFO [hardware-information]', 0x0D, 0x0A, 'GREEN/CYAN [change color]', 0x0D, 0x0A, 'VER [shows current version]', 0x0D, 0x0A, 'LOAD [start program]', 0x0D, 0x0A, 0
 unknown_msg: db 'Invalid command', 0x0D, 0x0A, 0
 
-ver_msg: db 'Xiromos Bootloader and Kernel Testversion', 0x0d, 0x0a, 0
+ver_msg: db 'Xiromos Bootloader and Kernel Color-Version', 0
 ver_str: db 'ver', 0
 
 cyan: db 'cyan', 0
@@ -422,8 +548,10 @@ disk_error_msg: db 'Disk Read Error Occured...', 0
 reboot_str: db 'reboot', 0
 calc_str: db 'calc', 0
 
-ram_count: db ' KB', 0
+k_str: db ' KB', 0
 ram_str: db 'ram', 0
+base_mem_kb dw 0
+mem_base_str: db 'Base Memory: ', 0
 hwinfo_str: db 'hwinfo', 0
 command_buffer db 25 dup(0)
 number_buffer db 7 dup(0)
