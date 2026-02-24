@@ -12,9 +12,11 @@
 <p>green: turns background to green [very buggy, not completed]</p>
 <p>cyan: turns background to cyan [very buggy, not completed]</p>
 <p>load: input a sector where a program is located to execute it</p>
-<p>      input 9 after executing command 'load' to enter the calculator program</p>
-<p>      input 10 after executing load command to show hardware information</p>
+<p>7(Calculator Program), 10(Hardware-Information)</p>
+<P>hwinfo: show hardware information (same as load 10)</p>
+<P>calc: calculator (same as load 7)</p>
 <p>> _</p>
 
+<a href="https://youtube.com/@Xiromos">Youtube: https://youtube.com/@Xiromos</a>
 
 <sub>© 2026 Technodon. All rights reserved</sub>
