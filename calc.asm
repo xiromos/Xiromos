@@ -5,6 +5,8 @@ start:
     mov ax, 0x03            ;clear screen
     int 0x10
 
+    call set_video_mode
+
     mov si, welcome_msg     ;display welcome_message
     call print_start
     call print_newline
@@ -32,6 +34,11 @@ start:
 
     jmp 500h                ;exit
 
+set_video_mode:
+    mov ax, 0x12
+    int 0x10
+    ret
+
 print_start:
     mov ah, 0x0e
     mov bh, 0
@@ -43,6 +50,19 @@ print_loop:
     int 0x10
     jmp print_loop
 print_done:
+    ret
+
+print_green:
+    mov ah, 0x0e
+    mov bh, 0
+    mov bl, 0x0a
+print_green_loop:
+    lodsb
+    cmp al, 0
+    je .done
+    int 0x10
+    jmp print_green_loop
+.done:
     ret
 read_input1:
     mov ax, ds
@@ -172,8 +192,9 @@ print_result:
 
     xor ah, ah
     int 0x16
+    clc
 
-    call return 
+    call start
 
 return:
     jmp 500h
@@ -191,7 +212,7 @@ leave_msg: db 'To Leave Type "q"', 0
 input1_msg: db 'Input a number ', 0
 result_msg: db 'Result: ', 0
 input2_msg: db 'Input a second number ', 0
-exit_msg: db 'To Exit Press A Key...', 0
+exit_msg: db 'Press Key To Calculate Again...', 0
 buffer1 dw 25 dup(0)
 buffer2 dw 25 dup(0)
 num db 10 dup(0)
