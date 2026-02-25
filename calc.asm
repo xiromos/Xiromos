@@ -1,4 +1,4 @@
-[org 1000h]
+[org 8000h]
 bits 16
 
 start:
@@ -15,24 +15,8 @@ start:
     call print_start
     call print_newline
 
-    mov si, input1_msg      ;say the user to input a number
-    call print_start
-    call print_newline
-    call read_input1        ;store the input number in a buffer
-    call print_newline
-
-    mov si, input2_msg      ;say the user to input a second number
-    call print_start        
-    call print_newline
-    call read_input2
-
-    call calculate          ;calculate the numbers
-
-    ;wait for keyboard input
-    mov ah, 0x00
-    int 0x16
-
-    jmp 500h                ;exit
+    call read_input
+    call exit_program
 
 set_video_mode:
     mov ax, 0x12
@@ -41,7 +25,6 @@ set_video_mode:
 
 print_start:
     mov ah, 0x0e
-    mov bh, 0
     mov bl, 0x0f
 print_loop:
     lodsb
@@ -52,47 +35,36 @@ print_loop:
 print_done:
     ret
 
-print_green:
+print_newline:
     mov ah, 0x0e
-    mov bh, 0
-    mov bl, 0x0a
-print_green_loop:
-    lodsb
-    cmp al, 0
-    je .done
+    mov al, 0x0d
     int 0x10
-    jmp print_green_loop
-.done:
+    mov al, 0x0a
+    int 0x10
     ret
-read_input1:
-    mov ax, ds
-    mov es, ax
+    
+
+read_input:
     mov di, buffer1
     xor cx, cx
-    jmp read_input_loop
-read_input2:
-    mov ax, ds
-    mov es, ax
-    mov di, buffer2
-    xor cx, cx
-    jmp read_input_loop 
-read_input_loop:
+read_loop:
     mov ah, 0
-    int 0x16        ;BIOS read function
+    int 0x16
+    cmp al, 0x0d
+    je read_done
     cmp al, 0x08
     je handle_backspace
-    cmp al, 0x0d
-    je end
     cmp cx, 255
-    jge read_input_loop
+    je read_loop
     stosb
     mov ah, 0x0e
+    mov bl, 0x0a
     int 0x10
     inc cx
-    jmp read_input_loop
+    jmp read_loop
 handle_backspace:
-    cmp cx, 0
-    je read_input_loop
+    cmp di, buffer1
+    je read_loop
     dec di
     dec cx
     mov ah, 0x0e
@@ -102,101 +74,13 @@ handle_backspace:
     int 0x10
     mov al, 0x08
     int 0x10
-    jmp read_input_loop
-end:
+    jmp read_loop
+read_done:
     mov byte [di], 0
-    call comp_q
     ret
-print_newline:
-    mov ah, 0x0e    ;print function
-    mov al, 0x0d    ;cursor goes to the left of the line
-    int 0x10        ;BIOS print interrupt
-    mov al, 0x0a    ;cursor goes 1 line down
-    int 0x10        
-    ret
-comp_q:
-    mov si, buffer1
-    lodsb
-    cmp al, 'q'
-    je return
 
-    mov si, buffer2
-    lodsb
-    cmp al, 'q'
-    je return
 
-    ret
-ascii_to_num:
-    xor ax, ax
-convertai_loop:
-    lodsb
-    cmp al, 0
-    je done_aiconvert
-
-    sub al, '0'
-    mov bl, al
-
-    mov dx, ax
-    mov cx, 10
-    mul cx
-
-    add ax, bx
-    jmp convertai_loop
-done_aiconvert:
-    ret
-num_to_ascii:
-    mov di, num + 9        ; Zeige auf das Ende des num-Buffers
-    mov byte [di], 0       ; Null-Terminator
-    dec di
-convertia_loop:
-    xor dx, dx
-    mov bx, 10
-    div bx
-
-    add dl, '0'
-    mov [di], dl
-    dec di
-
-    cmp ax, 0
-    jne convertia_loop
-
-    inc di
-    ret
-    
-
-calculate:
-    mov si, buffer1
-    call ascii_to_num
-    mov bx, ax
-
-    mov si, buffer2
-    call ascii_to_num
-    add ax, bx
-
-    call num_to_ascii
-    
-    call print_newline
-    mov si, result_msg
-    call print_start
-    call print_newline
-
-    mov si, [num]
-    call print_start
-    call print_newline
-    call print_newline
-
-    mov si, exit_msg
-    call print_start
-
-print_result:
-
-    xor ah, ah
-    int 0x16
-    clc
-
-    call start
-
-return:
+exit_program:
     jmp 500h
 
 
