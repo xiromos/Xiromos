@@ -1,12 +1,18 @@
-[org 1000h]
+;==============================================
+;Program to show hardware informatiob
+;Copyright (C) 2026 Technodon
+;==============================================
+
+
 bits 16
+[org 0x5000]
+
 
 start:
     mov ax, 0x03
     int 0x10
 
-    ;call set_video_mode        doesnt working
-
+    call set_video_mode        
     mov si, title_msg
     call print_start
     call print_newline
@@ -22,11 +28,15 @@ start:
 
     mov si, quit_msg
     call print_start
+    pop ss
+    pop es
+    pop ds
 
     call quit
 
 print_start:
     mov ah, 0x0e
+    mov bl, 0x0f
 print_loop:
     lodsb
     cmp al, 0
@@ -42,6 +52,10 @@ print_newline:
     mov al, 0x0a
     int 0x10
     ret
+print_start_green:
+    mov ah, 0x0e
+    mov bl, 0x0a
+    jmp print_loop
 set_video_mode:
     ; VGA 640*480, 16 colors
     mov ax, 0x12
@@ -149,7 +163,7 @@ detect_cpu:
     mov [cpu_vendor_str+4], edx
     mov [cpu_vendor_str+8], ecx
     mov si, cpu_vendor_str
-    call print_start
+    call print_start_green
     call print_newline
 
     mov si, cpu_desc_label
@@ -173,7 +187,7 @@ detect_cpu:
     mov [cpu_type_str+40], ecx
     mov [cpu_type_str+44], edx
     mov si, cpu_type_str
-    call print_start
+    call print_start_green
     call print_newline
     ret
 detect_cpu_features:
@@ -185,22 +199,22 @@ detect_cpu_features:
     test edx, 1 << 0
     jz no_fpu
     mov si, fpu_str
-    call print_start
+    call print_start_green
 no_fpu:
     test edx, 1 << 23
     jz no_mmx
     mov si, mmx_str
-    call print_start
+    call print_start_green
 no_mmx:
     test edx, 1 << 25
     jz no_sse
     mov si, sse_str
-    call print_start
+    call print_start_green
 no_sse:
     test edx, 1 << 26
     jz no_sse2
     mov si, sse2_str
-    call print_start
+    call print_start_green
 no_sse2:
     call print_newline
     ret
@@ -224,19 +238,18 @@ print_al:
     mov al, dl
     cmp dl, '0'
     jz skip_fn
-    mov bl, 0x0F
+    mov bl, 0x0a
     int 10h
 skip_fn:
     mov al, dh
-    mov bl, 0x0F
+    mov bl, 0x0a
     int 10h
     ret
 quit:
     xor ah, ah
     int 0x16
     clc
-
-    jmp 500h
+    jmp 0x1000
 
 
 
@@ -287,3 +300,5 @@ not_supported_str   db 'Not Supported', 0x0d, 0x0a, 0
 ext2_mem_16k_blocks dw 0
 ext2_mem_64k_blocks dw 0
 ext2_mem_mb         dw 0
+
+times 1536 - ($ - $$) db 0
