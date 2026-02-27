@@ -20,3 +20,11 @@ dd if=calc.bin of=disk.img bs=512 seek=6 conv=notrunc
 dd if=hwinfo.bin of=disk.img bs=512 seek=9 conv=notrunc
 printf "${GREEN}Copied data to disk image. Loading QEMU...${RESET}\n"
 qemu-system-i386 -hda disk.img -m 512M
+
+
+#Memory Map
+#Bootloader: 0x7c00
+#Kernel: 0x1000
+#Programs: 0x3000
+#Stack: 0x8000
+#Stackpointer: 0xfffe
