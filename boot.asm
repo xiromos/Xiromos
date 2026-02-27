@@ -1,6 +1,7 @@
 ;================================================
 ;Xiromos Bootloader, test version
 ;by Technodon
+;Copyright (C) 2026 Technodon
 ;================================================
 
 [org 0x7c00]
@@ -24,7 +25,7 @@ start:
     call print_start
     call load_kernel
 
-    jmp 0x500
+    jmp 0x1000
 
 
 halt:
@@ -36,7 +37,7 @@ load_kernel:
     mov ch, 0               ; Cylinder
     mov dh, 0               ; Head
     mov cl, 2               ; number of the first sector
-    mov bx, 0x500           ; Offset
+    mov bx, 0x1000         ; Offset
     ;mov ax, 0x1000
     ;mov es, ax              ; Zielsegment 0x1000
     int 0x13
