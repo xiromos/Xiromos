@@ -1,28 +1,35 @@
 ;================================================
 ;Xiromos Kernel Color-Version
 ;by Technodon
-;credits: This project wouldnt be possible without this tutorial:
-;https://osdev.netlify.app/x16/mini_kernel.html
+;Copyright (C) 2026 Technodon
 ;================================================
 
 
 bits 16
-[org 0x500]
+[org 0x1000]
 
 
 start:
+
+    cli
+    mov ax, 0x8000
+    mov ss, ax
+    mov sp, 0xfffe
+    sti
 
     mov ax, 0x03
     int 0x10
 
     call set_video_mode
-    
     call print_logo
 
     ;print welcome_msg
     mov si, welcome_msg
     call print_string_green
-
+    cmp [first_boot], 1
+    je read_username
+    
+    
     call shell
 
 hang:
@@ -53,90 +60,43 @@ set_video_mode:
 print_string_cyan:
     mov ah, 0x0E
     mov bl, 0x0B
-.print_char:
-    lodsb
-    cmp al, 0
-    je .done
-    int 0x10
-    jmp .print_char
-.done:
-    ret
-
+    jmp print_char
 ;--red--
 print_string_red:
     mov ah, 0x0E
     mov bl, 0x0C
-.print_char:
-    lodsb
-    cmp al, 0
-    je .done
-    int 0x10
-    jmp .print_char
-.done:
-    ret
-
+    jmp print_char
 ;--green--
 print_string_green:
     mov ah, 0x0E
     mov bl, 0x0A
-.print_char:
-    lodsb
-    cmp al, 0
-    je .done
-    int 0x10
-    jmp .print_char
-.done:
-    ret
-
+    jmp print_char
 ;--yellow--
 print_string_yellow:
     mov ah, 0x0E
     mov bl, 0x0E
-.print_char:
-    lodsb
-    cmp al, 0
-    je .done
-    int 0x10
-    jmp .print_char
-.done:
-    ret
-
+    jmp print_char
 ;--darkblue--
 print_string_darkblue:
     mov ah, 0x0E
     mov bl, 0x01
-.print_char:
-    lodsb
-    cmp al, 0
-    je .done
-    int 0x10
-    jmp .print_char
-.done:
-    ret
-
+    jmp print_char
 ;--white--
 print_string_white:
     mov ah, 0x0E
     mov bl, 0x0f
-.print_char:
-    lodsb
-    cmp al, 0
-    je .done
-    int 0x10
-    jmp .print_char
-.done:
-    ret
+    jmp print_char
 ;--dark-red--
 print_string_darkred:
     mov ah, 0x0E
     mov bl, 0x04
-.print_char:
+print_char:
     lodsb
     cmp al, 0
-    je .done
+    je print_char_done
     int 0x10
-    jmp .print_char
-.done:
+    jmp print_char
+print_char_done:
     ret
 
 ;===============================================================
@@ -154,8 +114,25 @@ print_logo:
     call print_string_cyan
     call print_newline
 
+    mov si, github_link
+    call print_string_cyan
+    call print_newline
+
+    mov si, copyright_str
+    call print_string_cyan
+    call print_newline
+
     ret
 shell:
+    ;mov si, prompt_front
+    ;call print_string_white
+
+    ;mov si, username
+    ;call print_string_cyan
+
+    ;mov si, prompt_back
+    ;call print_string_white
+
     mov si, prompt
     call print_string_white
 
@@ -176,7 +153,7 @@ print_newline:
     ret
 
 read_command:
-    mov di, command_buffer  ;SI - Quelle, DI - Ziel
+    mov di, command_buffer  ;SI - source, DI - Ziel
     xor cx, cx              ;?
 read_loop:
     mov ah, 0x00
@@ -185,26 +162,26 @@ read_loop:
     je read_end
     cmp al, 0x08        ;0x08 checks if backspace was pressed
     je handle_backspace
-    cmp cx, 255         ;zählt wie viel zeichen geschrieben wurden
+    cmp cx, 255         ;checks, how much charachters were written
     jge read_end
     stosb
     mov ah, 0x0e
     mov bl, 0x1f
     int 0x10
-    inc cx              ;pro zeichen wird cx um 1 erhöht
+    inc cx              ;per charachter + 1
     jmp read_loop
 
 handle_backspace:
     cmp di, command_buffer
     je read_loop
     dec di
-    dec cx          ;1 zeichen wird entfernt
+    dec cx          ;remove charachter
     mov ah, 0x0e
     mov al, 0x08    ;0x08 = BACKSPACE
     int 0x10
-    mov al, ' '     ;Zeichen ist da, aber es wird optisch mit ' ' erstetzt
-    int 0x10        ;leerzeichen überschreibt altes zeichen
-    mov al, 0x08    ;cursor geht noch einmal zurück
+    mov al, ' '     ;charachter is replaced with ' '
+    int 0x10        
+    mov al, 0x08    ;cursor wents one slot back
     int 0x10
     jmp read_loop
 
@@ -264,10 +241,17 @@ exec_cmd:
     call compare_str
     je start_hwinfo
 
-
+    mov si, command_buffer
+    mov di, whoami_str
+    call compare_str
+    je whoami
+    
+    cmp byte [command_buffer], 0x00
+    je return_shell
 
     ; if unknown command
     call unknown_cmd
+return_shell:
     ret
 compare_str:
     xor cx, cx
@@ -391,10 +375,10 @@ r_l_handle_backspace:
     jmp read_loop_load
 done_read:
     call print_newline
-    cmp [number_buffer], '1'
+    cmp byte [number_buffer], '1'
     je read_loop_load
 
-    cmp [number_buffer], '2'
+    cmp byte [number_buffer], '2'
     je read_loop_load
 
     mov byte [di], 0    ; Завершаем строку нулевым символом
@@ -408,7 +392,7 @@ convert_loop:
     lodsb
     cmp al, 0
     je done_convert
-    sub al, '0'         ;add
+    sub al, '0'         ;sub: convert to number, add: convert to ASCII charachter
     imul cx, 10
     add cx, ax
     jmp convert_loop
@@ -417,16 +401,21 @@ done_convert:
     ret
 start_program:
     pusha
+
+    push ds
+    push es
+    push ss  
+
     mov ah, 0x02        ;function to read sector
     mov al, 2           ; how much sectors to load? 
     mov ch, 0            ;cylinder
     mov dh, 0
     mov cl, [sector_number] ;number of sector
-    mov bx, 1000h         ;adress where to load
+    mov bx, 0x5000         ;adress where to load
     int 0x13
     jc disk_error
     popa 
-    jmp 1000h
+    jmp 0x5000
     ret
 disk_error:
     mov si, disk_error_msg
@@ -436,14 +425,6 @@ disk_error:
     popa
     ret
 quit_load:
-    ret
-display_ram:
-    mov si, mem_base_str
-    call print_string_white
-    int 12h         ;interrupt to detect memory
-    mov [base_mem_kb], ax
-    call print_decimal
-    call print_k_suffix
     ret
 
 print_decimal:
@@ -477,38 +458,87 @@ reboot:
     int 0x10
     ;jmp 0x7c00
     int 0x19
-start_calc:
-    pusha
+start_calc: 
+
     mov ah, 0x02        ;function to read sector
     mov al, 2           ; how much sectors to load? 
     mov ch, 0            ;cylinder
     mov dh, 0
+    mov dl, 0x80
     mov cl, 7            ;number of sector
-    mov bx, 1000h         ;adress where to load
+    mov bx, 0x5000         ;adress where to load
     int 0x13
     jc disk_error
-    popa 
-    jmp 1000h
+    jmp 0x5000
     ret
 start_hwinfo:
-    pusha
+    push ds
+    push es
+    push ss    
+
     mov ah, 0x02        ;function to read sector
-    mov al, 2           ; how much sectors to load? 
+    mov al, 2           ; amount of sector to load 
     mov ch, 0            ;cylinder
     mov dh, 0
+    mov dl, 0x80
     mov cl, 10            ;number of sector
-    mov bx, 1000h         ;adress where to load
+    mov bx, 0x5000         ;adress where to load
     int 0x13
-    jc disk_error
-    popa 
-    jmp 1000h
-    ret  
+    jc disk_error 
+    jmp 0x5000
+
+;====================username====================
+read_username:
+    mov byte [first_boot], 0
+    call print_newline
+    mov byte [username_set], 1
+    mov si, username_msg
+    call print_string_white
+    mov si, prompt
+    call print_string_white
+    mov di, username  ;SI - source, DI - Ziel
+    xor cx, cx              ;?
+read_username_loop:
+    mov ah, 0x00
+    int 0x16            ;call BIOS write function
+    cmp al, 0x0d        ;check if ENTER was pressed
+    je username_newline
+    cmp al, 0x08        ;0x08 checks if backspace was pressed
+    je handle_backspace2
+    cmp cx, 255         ;checks, how much charachters were written
+    jge read_end
+    stosb
+    mov ah, 0x0e
+    mov bl, 0x0a
+    int 0x10
+    inc cx              ;per charachter + 1
+    jmp read_username_loop
+
+handle_backspace2:
+    cmp di, username
+    je read_username_loop
+    dec di
+    dec cx          ;remove charachter
+    mov ah, 0x0e
+    mov al, 0x08    ;0x08 = BACKSPACE
+    int 0x10
+    mov al, ' '     ;charachter is replaced with ' '
+    int 0x10        
+    mov al, 0x08    ;cursor wents one slot back
+    int 0x10
+    jmp read_username_loop
+username_newline:
+    mov si, username_success
+    call print_string_green
+    jmp shell
 
 ;================================
 ; Strings and Buffers
 ;================================
 
 welcome_msg: db 'Kernel Loaded Successfully. Type "help" For Help.', 0x0d, 0x0a, 0
+github_link: db 'GITHUB: https://github.com/xiromos/Xiromos', 0
+copyright_str: db 'Copyright (C) 2026 Technodon', 0
 ;header db 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB2, 0xB2, 0xB2, 0xB2, 0xB2, 0xB2, 0xDB, 0xDB, ' ', 'x16 PRos v0.6', ' ', 0xDB, 0xDB, 0xB2, 0xB2, 0xB2, 0xB2, 0xB2, 0xB2, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0
 os_name: db '| Xiromos Bootloader and Kernel Color-Version |', 0
 header1: db ' --------------------------------------------- ', 0
@@ -522,20 +552,31 @@ str6: db ' /  /  \   \ ', 0
 str7: db '/  /    \   \', 0
 str8: db '---      ----', 0 
 
-;commands
+
 help_str: db 'help', 0
 clear_str: db 'clear', 0
 
-help_msg: db 'Commands: ', '                              Programs: ', 0x0D, 0x0A, 'HELP [shows all commands]', '               CALC [calculator]', 0x0D, 0x0A, 'CLEAR [cleas the screen]', '                HWINFO [hardware-information]', 0x0D, 0x0A, 'GREEN/CYAN [change color]', 0x0D, 0x0A, 'VER [shows current version]', 0x0D, 0x0A, 'LOAD [start program]', 0x0D, 0x0A, 0
+help_msg: db 'Commands:                                  Programs: ', 0x0D, 0x0A,
+          db 'HELP [shows all commands]                  CALC [calculator]', 0x0D, 0x0A,
+          db 'CLEAR [clear the screen]                   HWINFO [hardware-information]', 0x0D, 0x0A,
+          db 'GREEN/CYAN [change color]', 0x0D, 0x0A,
+          db 'VER [shows current version]', 0x0D, 0x0A, 
+          db 'LOAD [start program]', 0x0D, 0x0A,
+          db 'RAM [show usable ram]', 0x0D, 0x0A,
+          db 'WHOAMI [show current user (debug cmd)]', 0x0D, 0x0A, 0
+
+
 unknown_msg: db 'Invalid command', 0x0D, 0x0A, 0
 
-ver_msg: db 'Xiromos Bootloader and Kernel Color-Version', 0
+ver_msg: db 'Copyright (C) Technodon, Xiromos Bootloader and Kernel Color-Version', 0
 ver_str: db 'ver', 0
 
 cyan: db 'cyan', 0
 return_msg: db 'To Return Standard Color-Theme Type "clear"', 0
 
 green: db 'green', 0
+prompt_front: db '[', 0
+prompt_back: db ']', 0
 prompt: db '> ', 0
 
 load_prompt: db 'Enter sector number: ', 0
@@ -548,6 +589,11 @@ disk_error_msg: db 'Disk Read Error Occured...', 0
 reboot_str: db 'reboot', 0
 calc_str: db 'calc', 0
 
+whoami_str: db 'whoami', 0
+whoami_msg: db 'Current User: ', 0
+
+;-------includes-------
+%include "commands.asm"
 k_str: db ' KB', 0
 ram_str: db 'ram', 0
 base_mem_kb dw 0
@@ -557,3 +603,9 @@ command_buffer db 25 dup(0)
 number_buffer db 7 dup(0)
 sector_number dw 0
 hwinfo_buf dw 0
+username db 15 dup(0)
+username_msg: db 'Enter your username...', 0x0d, 0x0a, 0
+username_success: db '                  Username saved!', 0x0d, 0x0a, 0
+;turn first_boot to 1
+username_set: db 0
+first_boot: db 1
