@@ -3,18 +3,16 @@
 ;by Technodon
 ;Copyright (C) 2026 Technodon
 ;================================================
-
-
 bits 16
-[org 0x1000]
-
+[org 0x0000]
 
 start:
-
     cli
-    mov ax, 0x8000
+    mov ax, 0x2000
+    mov ds, ax
+    mov es, ax
     mov ss, ax
-    mov sp, 0xfffe
+    mov sp, 0xFFFF
     sti
 
     mov ax, 0x03
@@ -48,7 +46,7 @@ done_print:
     ret
 
 set_video_mode:
-    ; VGA 640*480, 16 colors
+    ;VGA 640*480, 16 colors
     mov ax, 0x12
     int 0x10
     ret
@@ -245,6 +243,16 @@ exec_cmd:
     mov di, whoami_str
     call compare_str
     je whoami
+
+    mov si, command_buffer
+    mov di, info_str
+    call compare_str
+    je info
+
+    mov si, command_buffer
+    mov di, setuser_str
+    call compare_str
+    je read_username
     
     cmp byte [command_buffer], 0x00
     je return_shell
@@ -402,14 +410,15 @@ done_convert:
 start_program:
     pusha
 
-    push ds
-    push es
-    push ss  
+    ;push ds
+    ;push es
+    ;push ss  
 
     mov ah, 0x02        ;function to read sector
     mov al, 2           ; how much sectors to load? 
     mov ch, 0            ;cylinder
     mov dh, 0
+    mov dl, 0x80
     mov cl, [sector_number] ;number of sector
     mov bx, 0x5000         ;adress where to load
     int 0x13
@@ -497,7 +506,7 @@ read_username:
     mov si, prompt
     call print_string_white
     mov di, username  ;SI - source, DI - Ziel
-    xor cx, cx              ;?
+    xor cx, cx              
 read_username_loop:
     mov ah, 0x00
     int 0x16            ;call BIOS write function
@@ -505,7 +514,7 @@ read_username_loop:
     je username_newline
     cmp al, 0x08        ;0x08 checks if backspace was pressed
     je handle_backspace2
-    cmp cx, 255         ;checks, how much charachters were written
+    cmp cx, 30         ;checks, how much charachters were written
     jge read_end
     stosb
     mov ah, 0x0e
@@ -531,6 +540,37 @@ username_newline:
     mov si, username_success
     call print_string_green
     jmp shell
+whoami:
+    mov si, whoami_msg
+    call print_string_white
+    cmp [username_set], 1
+    jne no_user_set
+    cmp byte [username], 0x00
+    je no_user_set
+    mov si, username
+    call print_string_cyan
+    call print_newline
+    ret
+
+no_user_set:
+    mov si, no_user
+    call print_string_red
+    call print_newline
+    ret
+
+display_ram:
+    mov si, mem_base_str
+    call print_string_white
+    int 12h         ;interrupt to detect memory
+    mov [base_mem_kb], ax
+    call print_decimal
+    call print_k_suffix
+    ret
+
+info:
+    mov si, logo
+    call print_string_white
+    ret
 
 ;================================
 ; Strings and Buffers
@@ -591,9 +631,8 @@ calc_str: db 'calc', 0
 
 whoami_str: db 'whoami', 0
 whoami_msg: db 'Current User: ', 0
-
+setuser_str: db 'setuser', 0
 ;-------includes-------
-%include "commands.asm"
 k_str: db ' KB', 0
 ram_str: db 'ram', 0
 base_mem_kb dw 0
@@ -606,6 +645,18 @@ hwinfo_buf dw 0
 username db 15 dup(0)
 username_msg: db 'Enter your username...', 0x0d, 0x0a, 0
 username_success: db '                  Username saved!', 0x0d, 0x0a, 0
-;turn first_boot to 1
 username_set: db 0
-first_boot: db 1
+;turn first_boot to 1 to set a username
+first_boot: db 0
+
+info_str: db 'info', 0
+logo: db ' __ ', 13, 10, 
+      db '|__|', 13, 10,
+      db ' __ ', 13, 10,
+      db '|  |', 13, 10,
+      db '|  |', 13, 10,
+      db '|  |', 13, 10,
+      db '|  |', 13, 10,
+      db '|  |', 13, 10,
+      db '|__|', 13, 10, 0
+no_user: db 'No User Set', 0
