@@ -12,12 +12,12 @@ start:
     nop
 
 ;=============FAT16==============================
-
+;--this bootloader is pure trash--
 ;can be all ignored because this bootloader use the BPB of the mkdosfs tool
 
     BPB_OEM db "MSWIN4.1"                   ;OEM identifier (can be ignored)
     BPB_BytesPerSec dw 512              ;sector size in bytes
-    BPB_SectorsPerCluster db 8             ;amount of sectors in one cluster
+    BPB_SectorsPerCluster db 4             ;amount of sectors in one cluster
     BPB_ReservedAreaCnt dw 1               ;number of sectors in reserved area(0 = bootsector)
     BPB_NumberOfFATs db 2                   ;if a sector in FAT area is damaged, data is not lost, duplicated to another FAT
     BPB_RootEntry dw 512                    ;defines number of directory entries in root directory
@@ -35,12 +35,15 @@ start:
     BS_VolumeLabel db "Xiromos    "
     BS_FileSystemType db "FAT16   "
 
+    RootStartSec dw 0
+    RootDirSectors dw 0
+    DataStartSector dw 0
 dap:
     db 0x10                         ;size of packet (16 bytes)
     db 0                            ;always 0
     dw 32                           ;number of sectors to read
-    dw 0x0800                       ;offset
-    dw 0x0000                       ;adress
+    dw 0x0500                       ;offset
+    dw 0x0000                       ;segment
     dq 0                            ;LBA
 
 main:
@@ -49,7 +52,7 @@ main:
     mov ds, ax      ;start adress of the data segment
     mov es, ax      ;start point of the extra segment
     mov ss, ax
-    mov sp, 0xFFFF
+    mov sp, 0x7c00
     sti
 
     mov byte [BS_DriveNumber], dl  ;get drive number (should be 0x80)
@@ -122,7 +125,7 @@ load_root:
 
     xor dx, dx
     mov dx, word [BPB_RootEntry]
-    mov di, 0x0800          ;adress where to search kernel.bin, [ES:DI]
+    mov di, 0x0500          ;adress where to search kernel.bin, [ES:DI]
 search_kernel:
     mov cx, 11               ;length of file name, needed for 'rep'
     mov si, file_kernel_bin  ;ds:si = name
@@ -147,7 +150,7 @@ load_FAT:
     ;mov bx, [BPB_NumberOfFATs]
     ;mul bx
     mov [dap+0x02], ax
-    mov [dap+0x04], word 0x1300
+    mov [dap+0x04], word 0x3999
     mov [dap+0x06], word 0x0000
     mov ax, [BPB_ReservedAreaCnt]
     add ax, [BPB_HiddenSectors]
@@ -160,7 +163,7 @@ load_kernel:
     mov si, ok_msg
     call print_start
     mov [dap+0x04], word 0x0000
-    mov [dap+0x06], word 0x2000
+    mov [dap+0x06], word 0x1000
 kernel_loop:
     mov si, ok_msg
     call print_start
@@ -171,7 +174,7 @@ kernel_loop:
     ;mov dword [dap+12], 0
     xor bx, bx
     mov bl, [BPB_SectorsPerCluster]        
-    mov [dap+0x02], bx           ;number of sectors to read
+    mov [dap+0x02], 8           ;number of sectors to read
     mov word  [dap+10], 0
     mov dword [dap+12], 0
     mov si, dap
@@ -180,11 +183,11 @@ kernel_loop:
     mov ax, 512
     mul cl
     add [dap+0x04], ax
-    add word [dap+0x06], 0x1000 >> 4   ; = 0x100
+    add word [dap+0x06], 0x1000 >> 4   ; = 0x100       !!!!!!!
 
     mov bx, [cluster]
     shl bx, 1                   ;cluster * 2
-    mov ax, [0x1300+bx]         ;[bx+0x1300] 
+    mov ax, [0x3999+bx]         
     mov [cluster], ax
     cmp ax, 2
     jb error
@@ -193,7 +196,15 @@ kernel_loop:
 loaded:
     mov si, ok_msg
     call print_start
-    jmp 0x2000:0x0000
+    mov al, [BS_DriveNumber]
+    mov [0x7e00], al
+    mov al, [BPB_SectorsPerCluster]
+    mov [0x7e00+1], al
+    mov ax, [BPB_RootEntry]
+    mov [0x7e00+2], ax
+    mov ax, [DataStartSector]
+    mov [0x7e00+4], ax
+    jmp 0x1000:0x0000
     hlt
 halt:
     jmp halt
@@ -213,7 +224,7 @@ error:
     mov si, error_msg
     call print_start
     xor ah, ah
-    int 0x16                        ;first check for user input
+    int 0x16                        ;check for user input
     int 0x19                        ;reboot system
 
 cluster_to_sec:
@@ -238,11 +249,6 @@ ok_msg: db '[ OK ]', 0x0d, 0x0a, 0
 ;no_supp: db '[ No EDD ]', 0x0d, 0x0a, 0
 error_msg: db '[ Error... ]', 0x0d, 0x0a, 0
 cluster: dw 0
-
-;FAT start sector = ReservedAreaCnt
-RootStartSec dw 0
-RootDirSectors dw 0
-DataStartSector dw 0
 
 file_kernel_bin db "KERNEL  BIN"
 ;--Description--
