@@ -1,8 +1,0 @@
-#ignore all .bin files
-*.bin
-disk.img
-git-token.txt
-boot.bin
-other
-pros
-copies
