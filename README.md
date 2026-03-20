@@ -41,8 +41,6 @@
 <p>- FAT12 support</p>
 <p>- make a mouse driver</p>
 <p>- implement own fonts</p>
-<p>- build own interrupt for starting a program</p>
-<p>- print_hex function</p>
 
 <h2>UPDATE: FILESYSTEM VERSION</h2>
 <p>- FAT16 support</p>
