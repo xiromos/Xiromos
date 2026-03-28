@@ -1,5 +1,5 @@
 ;================================================
-;Xiromos Kernel Color-Version
+;Xiromos Kernel Filesystem-Version
 ;by Technodon
 ;Copyright (C) 2026 Technodon
 ;================================================
@@ -7,7 +7,6 @@ bits 16
 [org 0x0000]
 
 start:
-    cli
     ;read boot info from 0x7e00 (segment 0)
     ;mov al, [0x7e00]
     ;mov [drive_number], 0x80
@@ -17,8 +16,12 @@ start:
     ;mov [root_entries], word 512
     ;mov ax, [0x7e00+4]
     ;mov [data_start_sec], word 65
-    call load_interrupts
+    ;mov ax, [0x7e00+22]
+    ;mov [fat_size], ax
 
+    call load_interrupts
+    
+    cli
     mov ax, kernel_seg
     mov ds, ax
     mov es, ax
@@ -26,6 +29,7 @@ start:
     mov sp, 0xFFFE
     sti
 
+    ;set video mode 0x12 (640x480 - 16 colors)
     mov ax, 0x03
     int 0x10
 
@@ -39,16 +43,44 @@ start:
     mov al, [0x7e00+1]
     mov [sec_per_cluster], 4
     mov ax, [0x7e00+2]
-    mov [root_entries], 512
+    mov [root_entries], word 512
     mov ax, [0x7e00+4]
     mov [data_start_sec], 100
+    mov [fat_size], 32
+    mov [reserved_sectors], 4
+    mov [root_start_sec], 68
+    mov [root_size], 32
     call set_video_mode
     call print_logo
 
-    call shell
+    ;enable A20 gate
+    mov si, a20_gate
+    call print_string_white
+    mov ax, 0x2401
+    int 0x15
+    jc a20_error
+    mov [a20_seg], word 0xFFFF
+    mov si, a20_enabled
+    call print_string_green
+    call print_newline
+    call print_newline
+
+    call print_blocks
+
+    jmp shell
     jmp start
 hang:
     jmp hang
+
+a20_error:
+    mov [a20_seg], word 0x9000
+    mov si, a20_disabled
+    call print_string_red
+    call print_newline
+    call print_newline
+
+    call print_blocks
+    jmp shell
 print_start:
     mov ah, 0x0e
 print_loop:
@@ -81,16 +113,6 @@ print_string_red:
 print_string_green:
     mov ah, 0x0e
     mov bl, 0x0a
-    jmp print_char
-;--yellow--
-print_string_yellow:
-    mov ah, 0x0e
-    mov bl, 0x0e
-    jmp print_char
-;--darkblue--
-print_string_darkblue:
-    mov ah, 0x0e
-    mov bl, 0x01
     jmp print_char
 ;--white--
 print_string_white:
@@ -192,8 +214,11 @@ print_logo:
     call print_string_cyan
     mov dx, 0x10
     call print_hex
+    mov si, zero_zero
+    call print_string_cyan
     call print_newline
-    call print_newline
+    ret
+print_blocks:
     mov ah, 0x0e
     mov al, 0xdb
     mov bl, 0x0a
@@ -258,12 +283,14 @@ read_command:
     mov di, command_buffer  ;SI - source, DI - Ziel
     xor cx, cx              ;?
 read_loop:
-    mov ah, 0x00
+    xor ah, ah
     int 0x16            ;call BIOS write function
     cmp al, 0x0d        ;check if ENTER was pressed
     je read_end
     cmp al, 0x08        ;0x08 checks if backspace was pressed
     je handle_backspace
+    cmp ah, 0x53        ;scancode for DEL
+    je reboot
     cmp cx, 255         ;checks, how much charachters were written
     jge read_end
     stosb
@@ -294,18 +321,20 @@ read_end:
 return_shell:
     ret
 compare_str:
-    xor cx, cx
-next_char:
-    lodsb
-    cmp al, [di]
+    mov al, [si]
+    mov bl, [di]
+    cmp al, bl
     jne not_equal
     cmp al, 0
     je equal
     inc di
-    jmp next_char
+    inc si
+    jmp compare_str
 not_equal:
+    clc
     ret
 equal:
+    stc
     ret
 help:
     mov si, help_msg
@@ -333,16 +362,16 @@ unknown_cmd:
 print_decimal:
     pusha
     mov cx, 0
-    mov ebx, 10
+    mov bx, 10
 .div_loop:
-    mov edx, 0
-    div ebx
-    push edx
+    mov dx, 0
+    div bx
+    push dx
     inc cx
-    cmp eax, 0
+    cmp ax, 0
     jne .div_loop
 .print_loop:
-    pop eax
+    pop ax
     add al, '0'
     mov ah, 0x0e
     int 0x10
@@ -358,8 +387,6 @@ print_k_suffix:
     ret
 reboot:
     int 0x19
-start_program: 
-    int 0x20
 
 ;====================username====================
 read_username:
@@ -441,5 +468,4 @@ display_ram:
 %include "kernel/data.asm"
 %include "kernel/fs16.asm"
 %include "kernel/exec_cmd.asm"
-
 %include "programs/ints/ints.asm"
