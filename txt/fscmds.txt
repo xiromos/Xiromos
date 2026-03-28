@@ -1,0 +1,28 @@
+Help File
+
+READ-Command
+-The READ-Command allows you to read .txt or .asm files. To use it you have to
+ type 'read' and then pass the file name. The file name has to be in the 8.3
+ format
+ (8 letter for the name, 3 for the extension) because this OS uses FAT16
+
+-If you read a long file (more than 28 lines), then the READ-Command stops at
+ line 28.
+
+ Press any key to continue reading or press 'q' to quit to terminal again
+
+
+WRITE-Command
+-The WRITE-Command writes an empty .TXT or .ASM file to the disk. 
+ You have to name this file in the 8.3 format.
+-After creating the file you can open the file with the XIR Texteditor.
+ It will highlight Assembly syntax in .ASM files.
+
+LS-Command:
+-The LS-Command shows the content of the root directory. It will also show
+ the size in bytes of the files
+
+RENAME-Command:
+-The RENAME-Command allows you to change the file name of a file. Be careful
+ because if you rename .BIN files, you cant execute them until you rename
+ them back
