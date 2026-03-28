@@ -1,0 +1,17 @@
+Minimum System Requirements
+
+CPU Minimum: Intel 386 DX
+CPU Recommended: Intel Pentium P5
+
+RAM Minimum: 1MB
+RAM Recommended: 2MB
+
+Display: 640x480
+
+Mainboard has to support EDD (Enhanced Disk Drive Services)
+
+Recommended Disk Size: 16MB
+Maximum Disk Size Supported: 4GB
+
+This system does not support the i8086, even tough it its
+written in 16-Bit assembly.
