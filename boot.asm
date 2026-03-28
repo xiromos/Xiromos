@@ -120,7 +120,7 @@ main:
 load_root:
     ;BIOS extended disk read function
     ;load the root directory into memory
-    mov si, dap              ;disk adress packet
+    mov si, dap              ;disk adress packet - expected in SI by int 0x13
     call read_sectors
 
     xor dx, dx
@@ -132,7 +132,7 @@ search_kernel:
     ;cmp byte [es:di], 0
     ;je error
     push di
-    repe cmpsb                ;compare si with , compare it 512 times
+    repe cmpsb                ;compare DS:SI with ES:DI
     pop di
     je load_FAT
     add di, 32               ;add 32 because one dir entry is 32 bytes
@@ -142,20 +142,20 @@ search_kernel:
     
 load_FAT:
     mov di, [es:di+0x1a]             ;di = cluster no.
-    mov word [cluster], di
-    mov si, ok_msg
+    mov word [cluster], di           ;save the cluster number in a variable
+    mov si, ok_msg                   ;debug feature
     call print_start
 
     mov ax, [BPB_FATSz16]
     ;mov bx, [BPB_NumberOfFATs]
     ;mul bx
-    mov [dap+0x02], ax
-    mov [dap+0x04], word 0x3999
-    mov [dap+0x06], word 0x0000
+    mov [dap+0x02], ax                      ;size in sectors
+    mov [dap+0x04], word 0x3999             ;offset
+    mov [dap+0x06], word 0x0000             ;segment
     mov ax, [BPB_ReservedAreaCnt]
     add ax, [BPB_HiddenSectors]
-    mov [dap+0x08], ax
-    mov word [dap+10], 0
+    mov [dap+0x08], ax                      ;LBA - FAT starts after the reserved sectors
+    mov word [dap+10], 0                    ;fill the high word of the DAP with zeros
     mov dword [dap+12], 0
     mov si, dap
     call read_sectors
@@ -163,7 +163,7 @@ load_kernel:
     mov si, ok_msg
     call print_start
     mov [dap+0x04], word 0x0000
-    mov [dap+0x06], word 0x1000
+    mov [dap+0x06], word 0x1000             ;load kernel at 0x1000:0x0000
 kernel_loop:
     mov si, ok_msg
     call print_start
@@ -174,7 +174,7 @@ kernel_loop:
     ;mov dword [dap+12], 0
     xor bx, bx
     mov bl, [BPB_SectorsPerCluster]        
-    mov [dap+0x02], 8           ;number of sectors to read
+    mov [dap+0x02], bx           ;number of sectors to read
     mov word  [dap+10], 0
     mov dword [dap+12], 0
     mov si, dap
@@ -183,13 +183,13 @@ kernel_loop:
     mov ax, 512
     mul cl
     add [dap+0x04], ax
-    add word [dap+0x06], 0x1000 >> 4   ; = 0x100       !!!!!!!
+    add word [dap+0x06], 0x80   ; 0x80 * 16 = 0x800 = 2048 bytes (one cluster)
 
     mov bx, [cluster]
     shl bx, 1                   ;cluster * 2
     mov ax, [0x3999+bx]         
     mov [cluster], ax
-    cmp ax, 2
+    cmp ax, 2                   ;compare if its an invalid cluster (0 and 1 are reserved)
     jb error
     cmp ax, 0xFFF8              ;check if its the last cluster
     jb kernel_loop              ;if not, load the next cluster
@@ -206,7 +206,7 @@ loaded:
     mov [0x7e00+4], ax
     jmp 0x1000:0x0000
     hlt
-halt:
+halt:                           ;in case the jump fails
     jmp halt
 
 print_start:
