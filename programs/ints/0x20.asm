@@ -29,7 +29,7 @@ program_notfound:
     iret
 load_program:
     mov [program_dap+4], word 0x0000
-    mov [program_dap+6], word 0x2000        ;0x1000*16+0x0000 = 10000
+    mov [program_dap+6], word 0x5000        ;0x1000*16+0x0000 = 10000
 load_programs_loop:
     ;mov si, ok_msg
     ;call print_string_green
@@ -61,14 +61,15 @@ load_programs_loop:
     ;jb invalid_cluster
     ;cmp ax, 0xFFF8                              ;check if its the last cluster
     ;jb load_programs_loop
-;-----------------------
+;-----------------------                    ;!!!! you could get the file size at offset 0x1c, calculate how much sectors this is and then load them!!!!
     ;mov si, ok_msg
     ;call print_string_green
     ;call print_newline
+    call far 0x5000:0x0000
     mov ax, kernel_seg
-    mov ss, ax
-    mov sp, 0xFFFE
-    call 0x2000:0x0000
+    mov es, ax
+    mov ds, ax
+    call print_newline
     iret
 read_sectors:
     mov ah, 0x42                ;BIOS extended read

@@ -10,11 +10,9 @@ bits 16
 
 start:
     cli
-    mov ax, 0x2000
+    mov ax, 0x5000
     mov ds, ax
     mov es, ax
-    mov ss, ax
-    mov sp, 0x9000
     sti
 
     mov ax, 0x03
@@ -33,12 +31,13 @@ start:
 
     call print_newline
     call detect_drives
+    call print_sectors
     call print_newline
 
     mov si, quit_msg
     call print_start
 
-    call quit
+    jmp quit
 
 print_start:
     mov ah, 0x0e
@@ -251,10 +250,36 @@ skip_fn:
     mov bl, 0x0a
     int 10h
     ret
+print_sectors:
+    mov si, sector_number
+    call print_start
+    xor ax, ax
+    mov es, ax
+    lea di, [0x7c00+0x13]
+    mov bx, [es:di]
+    mov ax, bx
+    mov di, total_sectors+5
+    mov cx, 0
+.convert_loop:
+    xor dx, dx
+    mov bx, 10
+    div bx
+    add dl, '0'
+    dec di
+    mov [di], dl
+    inc cx
+    cmp ax, 0
+    jne .convert_loop
+    mov si, di
+    call print_start_green
+    call print_newline
+    ret
 quit:
     xor ah, ah
     int 0x16
-    jmp 0x1000:0x0000
+    mov ax, 0x12
+    int 0x10
+    retf
 
 
 
@@ -291,7 +316,6 @@ mem_ext_label       db 'Extended memory between (1M - 16M): ', 0
 mem_ext2_label      db 'Extended memory above 16M: ', 0
 mem_total_label     db 'Total memory: ', 0
 
-mouse_label         db 'Mouse Status: ', 0
 serial_count_label  db 'Number of serial port: ', 0
 serial_addr_label   db 'Base I/O address for serial port 1: ', 0
 
@@ -300,3 +324,6 @@ not_supported_str   db 'Not Supported', 0x0d, 0x0a, 0
 ext2_mem_16k_blocks dw 0
 ext2_mem_64k_blocks dw 0
 ext2_mem_mb         dw 0
+
+sector_number: db 'Number of Sectors: ', 0
+total_sectors: times 5 db '0'

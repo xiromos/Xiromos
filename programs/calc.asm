@@ -7,11 +7,9 @@ bits 16
 
 start:
     cli
-    mov ax, 0x2000
+    mov ax, 0x5000
     mov ds, ax
     mov es, ax
-    mov ss, ax
-    mov sp, 0x9000
     sti
 
     mov ax, 0x03            ;clear screen
@@ -267,8 +265,6 @@ convert_digit_loop2:
     dec di
     cmp ax, 0
     jne convert_digit_loop2
-    
-    jmp print_result
 
 
 print_result:
@@ -301,7 +297,10 @@ print_result:
 
 
 exit_program:
-    jmp 0x1000:0x0000
+    pop ax
+    mov ax, 0x12
+    int 0x10
+    retf
 
 
 

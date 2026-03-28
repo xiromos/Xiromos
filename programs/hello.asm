@@ -2,16 +2,18 @@ bits 16
 [org 0x0000]
 
 start:
-    mov ax, 0x2000
+    cli
+    mov ax, 0x5000
     mov es, ax
     mov ds, ax
-
+    sti
+    
     mov si, hello_msg
     mov bl, 0x0b
     call print_start
     xor ah, ah
     int 0x16
-    jmp 0x1000:0x0000
+    retf
 print_start:
     mov ah, 0x0e
 print_loop:
