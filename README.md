@@ -31,9 +31,7 @@
 
 <h3>TODOs</h3>
 <p>- implement own assembler</p>
-<p>- make the assembler assemble an .asm file to a .bin file, store it on the disk and </br>
-   execute it
-</p>
+<p>- implement own compiler</p>
 <p>- multiple disk support</p>
 <p>- implement a game :)</p>
 <p>- fix bugs</p>
@@ -47,9 +45,17 @@
 <p>- updated theme and terminal</p>
 <p>- fixed bugs</p>
 <p>- editor program</p>
-<p>- own interrupts for loading and executing a program</p>
+<p>- hello.bin program</p>
+<p>- int 0x20 - loads and executes a program (expects the filename in SI)</p>
+<p>- int 0x22 - file operations</p>
+<p>- AH = 0x01, filename in SI: read file</p>
+<p>- AH = 0x02, filename in SI: write an empty file</p>
+<p>- AH = 0x03, filename in SI: list content of root directory</p>
+<p>- AH = 0x04, filename in SI: rename an existing file</p>
+<p>- AH = 0x05, filename in SI: delete a file</p>
+<p>- programs use RETF to return to kernel, instead of reloading it</p>
 <p>> _</p>
 <p>DOWNLOAD disk image:</p>
-<a href="xiromos.netlify.app">Website</a><br/>
+<a href="xiromos.netlify.app">Here</a><br/>
 <a href="https://youtube.com/@Xiromos">Youtube</a><br/>
 <sub>© 2026 Technodon. All rights reserved</sub>
