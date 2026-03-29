@@ -317,6 +317,8 @@ rs_handle_backspace:
     int 0x10
     jmp read_string_loop
 quit_read_string:
+    pop ax
+    pop ax
     jmp start
 read_string_done:
     ret
