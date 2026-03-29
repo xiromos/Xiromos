@@ -9,8 +9,6 @@ start:
     mov ax, 0x5000
     mov es, ax
     mov ds, ax
-    mov ss, ax
-    mov sp, 0x9000
 
     mov ax, 0x12
     int 0x10
@@ -34,7 +32,9 @@ done:
     ret
 
 exit:
-    jmp 0x1000:0x0000
+    mov ax, 0x12
+    int 0x10
+    retf
 
 ascii_table1 db 'HEX        CHAR        |       HEX        CHAR', 13, 10,
              db '                       |       0x61       a', 13, 10, 
