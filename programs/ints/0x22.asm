@@ -65,7 +65,7 @@ load_file_loop:
     ;jb invalid_cluster
     ;cmp ax, 0xFFF8                              ;check if its the last cluster
     ;jb load_programs_loop
-;-----------------------                    ;!!!! you could get the file size at offset 0x1c, calculate how much sectors this is and then load them!!!!
+;-----------------------
     ;mov si, ok_msg
     ;call print_string_green
     ;call print_newline
@@ -119,6 +119,7 @@ read_file_done:
     iret
 ;----------------write a file to the disk------------
 search_entry:
+    push si
     xor ax, ax
     mov es, ax
     mov dx, [root_entries]
@@ -134,6 +135,7 @@ search_entry_loop:              ;searching the root directory
     jnz search_entry_loop
 
     ;no free entries
+    pop si
     mov ax, kernel_seg
     mov es, ax
     mov si, no_entries
@@ -146,10 +148,8 @@ free_entry:
     call print_string_green
     call print_newline
     mov bx, 2       ;cluster 0 and 1 are reserved
-    push ax
     xor ax, ax
     mov ds, ax
-    pop ax
 search_fat:
     mov si, 0x3999
     mov ax, bx            ;cluster number in ax
@@ -179,7 +179,7 @@ free_cluster:
     mov ds, ax
     push bx
     call write_fat
-    jmp write_entry
+    jmp get_data
 write_fat:
     pusha
     mov ax, [reserved_sectors]
@@ -200,6 +200,7 @@ write_fat:
 write_fat_error:
     popa
     pop bx
+    pop si
     mov ax, kernel_seg
     mov es, ax
     mov ds, ax
@@ -207,15 +208,22 @@ write_fat_error:
     call print_string_red
     call print_newline
     iret
-write_entry:
+get_data:
     pusha
-    mov si, ok_msg
-    call print_string_green
-    call print_newline
+    mov si, file_content
+    call print_string_white
+    mov ax, kernel_seg
+    mov es, ax
+    call read_string2
+    mov [text_length], cx
     popa
+write_entry:
     ;write filename attribute
-    ;mov si, read_buffer
-    mov si, file_test_txt
+    xor ax, ax
+    mov es, ax
+    pop bx
+    pop si
+    push bx
     mov cx, 11
     push di
     rep movsb       ;copies [ds:si] to [es:di]
@@ -223,19 +231,12 @@ write_entry:
     mov byte [es:di+0x0b], 0x20     ;archive
     
     mov [es:di+0x1a], bx            ;first cluster
-
-    mov [es:di+0x1c], word 4096     ;!!!
+    mov cx, [text_length]
+    mov [es:di+0x1c], cx            ;!!!
 
     mov word [es:di+0x1e], 0        ;high word
     call write_root
-    mov si, ok_msg
-    call print_string_green
-    call print_newline 
-get_data:
-    ;mov si, file_content
-    ;call print_string_white
-    ;mov si, read_buffer2
-    mov si, test_txt
+    mov si, input_buffer
 write_disk:
     pop bx
     mov ax, bx
@@ -251,6 +252,7 @@ write_disk:
 
     mov si, file_dap
     call write_sectors
+    call print_newline
     mov si, write_success_msg
     call print_string_green
     call print_newline
@@ -267,12 +269,13 @@ write_sectors:
 write_sectors_error:
     mov ax, kernel_seg
     mov es, ax
+    call print_newline
     mov si, write_sec_err
     call print_string_red
     call print_newline
     iret
 read_string2:
-    mov di, read_buffer2
+    mov di, input_buffer
     xor cx, cx
 read_string_loop2:
     xor ah, ah
@@ -281,8 +284,6 @@ read_string_loop2:
     je read_string_done
     cmp al, 0x08
     je rs_handle_backspace2
-    cmp al, 'q'
-    je quit_read_string
     stosb               ;store string in di
     mov ah, 0x0e
     mov bl, 0x02
@@ -302,6 +303,8 @@ rs_handle_backspace2:
     mov al, 0x08
     int 0x10
     jmp read_string_loop2
+read_string2_done:
+    ret
 write_root:
     mov ax, [root_size]
     mov [file_dap+0x02], ax
@@ -309,8 +312,9 @@ write_root:
     mov [file_dap+0x06], word 0x0000
     mov ax, [root_start_sec]
     mov [file_dap+0x08], ax
-    mov [file_dap+0x0a], 0
-
+    mov [file_dap+0x0a], word 0
+    mov [file_dap+0x0c], word 0
+    mov [file_dap+0x0e], word 0
     mov dl, [drive_number]
     mov si, file_dap
     mov ah, 0x43
@@ -318,14 +322,15 @@ write_root:
     jc write_root_error
     ret
 write_root_error:
-    mov si, write_root_msg
-    call print_string_red
-    call print_newline
     mov ax, kernel_seg
     mov es, ax
     mov ds, ax
+    pop ax
+    mov si, write_root_msg
+    call print_string_red
+    call print_newline
     iret
-current_cluster: dw 0
+text_length: dw 0
 ;----------------list contents of a directory------------
 get_file_list:
     mov si, ls_header
@@ -462,6 +467,7 @@ search_filename_loop:
     add di, 32
     dec dx
     jnz search_filename_loop
+    call print_newline
     jmp file_notfound
 delete_object:
     mov byte [es:di], 0xe5      ;deleted file marker
@@ -493,3 +499,4 @@ delete_loop_done:
     iret
 file_test_txt: db "TEST    TXT"
 test_txt db 'Success!'
+input_buffer: times 512 db 0
