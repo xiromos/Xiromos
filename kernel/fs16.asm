@@ -60,6 +60,7 @@ write_file:
     mov si, read_prompt
     call print_string_white
     call read_string
+    mov si, read_buffer
     call int_write_file
     ret
 int_write_file:
