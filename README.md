@@ -54,6 +54,14 @@
 <p>- AH = 0x04, filename in SI: rename an existing file</p>
 <p>- AH = 0x05, filename in SI: delete a file</p>
 <p>- programs use RETF to return to kernel, instead of reloading it</p>
+<p>- argument support</p>
+<p>- **new commands:**</p>
+<p>- READ (read a text file)</p>
+<p>- WRITE (write a text file)</p>
+<p>- RENAME (rename a text file)</p>
+<p>- DEL (delete a file or program)</p>
+<p>- LSDISK (show available disks)</p>
+<p>- CDISK (change disk to save data on it)</p>
 <p>> _</p>
 <p>DOWNLOAD disk image:</p>
 <a href="xiromos.netlify.app">Here</a><br/>
