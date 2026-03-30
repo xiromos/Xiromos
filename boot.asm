@@ -12,7 +12,6 @@ start:
     nop
 
 ;=============FAT16==============================
-;--this bootloader is pure trash--
 ;can be all ignored because this bootloader use the BPB of the mkdosfs tool
 
     BPB_OEM db "MSWIN4.1"                   ;OEM identifier (can be ignored)
