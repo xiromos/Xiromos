@@ -13,12 +13,13 @@ int0x22:
     je search_entry
     cmp ah, 0x03            ;list content of root directory
     je get_file_list
-    cmp ah, 0x04
+    cmp ah, 0x04            ;rename a file
     je rename_file_name
-    cmp ah, 0x05
+    cmp ah, 0x05            ;delete a file
     je search_filename
+    cmp ah, 0x06
+    je change_drive
     iret
 
 %include "programs/ints/0x20.asm"
 %include "programs/ints/0x22.asm"
-    

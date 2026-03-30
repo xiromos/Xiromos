@@ -54,7 +54,7 @@ load_programs_loop:
     adc word [program_dap+6], 0                ;increase buffer for next cluster
     mov bx, [program_cluster]                   ;get the cluster-number
     shl bx, 1                                   ;multiply it by 2, because [cluster] is 16-bit, but a FAT entry is 32bit
-    mov ax, [0x3999+bx]                         ;read the value for the next cluster number
+    mov ax, [fat_offset+bx]                         ;read the value for the next cluster number
     mov [program_cluster], ax                   ;save the value for next cluster
 ;------NOT WORKING------
     ;cmp ax, 2
@@ -100,4 +100,30 @@ disk_error:
     call print_newline
     iret
 
+reload_root:
+    mov ax, [root_size]
+    mov [program_dap+0x02], ax
+    mov [program_dap+0x04], word 0x0500
+    mov [program_dap+0x06], word 0x0000
+    mov ax, [root_start_sec]
+    mov [program_dap+0x08], ax
 
+    call reload_sectors
+    ret
+reload_fat:
+    mov ax, [fat_size]
+    mov [program_dap+0x02], ax
+    mov [program_dap+0x04], word fat_offset
+    mov [program_dap+0x06], word 0x0000
+    mov ax, [reserved_sectors]
+    mov [program_dap+0x08], ax          ;!!! no calculating of hidden sectors
+
+    call reload_sectors
+    ret
+reload_sectors:
+    mov ah, 0x42
+    mov dl, [drive_number]
+    mov si, program_dap
+    int 0x13
+    jc rsod         ;emergency restart
+    ret

@@ -151,7 +151,7 @@ free_entry:
     xor ax, ax
     mov ds, ax
 search_fat:
-    mov si, 0x3999
+    mov si, fat_offset
     mov ax, bx            ;cluster number in ax
     shl ax, 1             ;ax * 2
     add si, ax
@@ -172,7 +172,7 @@ free_cluster:
     mov ax, 0xfff8        ;end of cluster marker
     mov dx, bx            ;copy bx into dx
     shl dx, 1             ;same as dx * 2 (cluster entry is 2 bytes long)
-    mov si, 0x3999        ;adress of the FAT
+    mov si, fat_offset        ;adress of the FAT
     add si, dx            ;add the FAT adress our cluster number
     mov [si], ax          ;mark this FAT adress as reserved
     mov ax, kernel_seg
@@ -186,7 +186,7 @@ write_fat:
     mov [file_dap+0x08], ax               ;LBA
     mov cx, [fat_size]
     mov [file_dap+2], cx                 ;size of FAT
-    mov [file_dap+4], word 0x3999             ;offset
+    mov [file_dap+4], word fat_offset             ;offset
     mov [file_dap+6], word 0x0000             ;segment
 
     mov dl, [drive_number]               
@@ -426,17 +426,19 @@ search_root:
     add di, 32
     dec dx
     jnz search_root
-    call print_newline
     jmp file_notfound
 file_found:
     push di
-    call print_newline
     mov si, rename_msg
     call print_string_white
 
     mov ax, kernel_seg
     mov es, ax
     call read_string
+    mov si, arg_buffer
+    mov di, read_buffer
+    xor cx, cx
+    call parse_arg_loop
     xor ax, ax
     mov es, ax
 
@@ -467,7 +469,6 @@ search_filename_loop:
     add di, 32
     dec dx
     jnz search_filename_loop
-    call print_newline
     jmp file_notfound
 delete_object:
     mov byte [es:di], 0xe5      ;deleted file marker
@@ -479,7 +480,7 @@ delete_loop:
     je delete_loop_done
     mov ax, bx          ;copy cluster into AX
     shl ax, 1
-    mov si, 0x3999      ;offset
+    mov si, fat_offset      ;offset
     add si, ax
     mov dx, [si]        ;next cluster
 
@@ -492,11 +493,177 @@ delete_loop_done:
     call write_fat
     mov ax, kernel_seg
     mov es, ax
-    call print_newline
     mov si, delete_success
     call print_string_green
     call print_newline
     iret
-file_test_txt: db "TEST    TXT"
-test_txt db 'Success!'
-input_buffer: times 512 db 0
+;-----------change drive------------------
+change_drive:
+    mov ax, [drives]
+    cmp ax, 0
+    je count_floppies
+    jmp check_drive_number
+count_floppies:
+    mov ax, [floppies]
+    cmp ax, 0
+    jne check_drive_number
+no_drive:
+    mov si, no_drive_msg
+    call print_string_red
+    call print_newline
+    iret
+check_drive_number:
+    xor di, di
+    cmp byte [si], 0x61    ;a
+    je check_floppies
+    cmp byte [si], 0x41    ;A
+    je check_floppies
+    inc di
+    cmp byte [si], 0x62
+    je check_floppies
+    cmp byte [si], 0x42
+    je check_floppies
+    cmp byte [si], 0x63     ;c
+    je current_disk
+    cmp byte [si], 0x43      ;C
+    je current_disk
+    mov di, 0x81
+    cmp byte [si], 0x64
+    je check_drives
+    cmp byte [si], 0x44
+    je check_drives
+    inc di
+    cmp byte [si], 0x65
+    je check_drives
+    cmp byte [si], 0x45
+    je check_drives
+no_valid_drives:
+    mov si, no_valid_drive
+    call print_string_red
+    call print_newline
+    iret
+current_disk:
+    mov ax, kernel_seg
+    mov es, ax
+    call get_bpb_data
+    call reload_root
+    call reload_fat
+    mov si, get_bpb_ok
+    call print_string_green
+    call print_newline
+    iret
+check_floppies:
+    mov si, no_floppy_sup
+    call print_string_red
+    call print_newline
+    iret
+check_drives:
+    mov si, drive_num_str
+    call print_string_white
+    mov [external_drive_number], di
+    mov dx, di
+    call print_hex
+
+    mov ax, [drives]
+    add ax, 0x80
+    cmp ax, di
+    jb no_valid_drives
+
+    mov [file_dap+0x02], 1
+    mov [file_dap+0x04], word 0x7c00
+    mov [file_dap+0x06], word 0x9000
+    mov [file_dap+0x08], 0
+    mov [file_dap+0x0a], word 0
+    mov [file_dap+0x0c], word 0
+    mov [file_dap+0x0e], word 0
+    mov si, file_dap
+    mov dl, [external_drive_number]
+    mov ah, 0x42
+    int 0x13
+    jc disk_change_err
+get_external_bpb:
+    mov ax, 0x9000
+    mov es, ax
+    mov di, 0x7c00
+    mov al, byte [external_drive_number]
+    mov [drive_number], al
+    mov al, [es:di+0x0d]
+    mov [sec_per_cluster], al
+    mov ax, [es:di+0x0e]
+    mov [reserved_sectors], ax
+    mov ax, word [es:di+0x11]
+    mov [root_entries], ax
+    mov ax, [es:di+0x16]
+    mov [fat_size], ax
+    mov ax, [es:di+0x0b]
+    mov [bytes_per_sec], ax
+    mov al, [es:di+0x10]
+    mov [fat_num], al
+    cmp word [es:di+510], 0xaa55
+    jne disk_error
+    mov ax, kernel_seg
+    mov es, ax
+    ;calculate root sectors
+    mov ax, [root_entries]
+    mov bx, 32
+    mul bx
+
+    mov bx, [bytes_per_sec]
+    add ax, bx
+    dec ax
+    xor dx, dx
+    div bx
+
+    mov [root_size], ax
+    mov [file_dap+0x02], ax
+    ;calculate root start
+    xor ax, ax
+    mov al, [fat_num]
+    mov bx, [fat_size]
+    mul bx
+    add ax, [reserved_sectors]
+    mov [root_start_sec], ax
+    mov [file_dap+0x08], ax
+    
+    ;calculate data start sec
+    mov ax, [root_start_sec]
+    add ax, [root_size]
+    mov [data_start_sec], ax
+
+    mov [file_dap+0x04], word 0x0500
+    mov [file_dap+0x06], word 0x0000
+    mov ah, 0x42
+    mov si, file_dap
+    mov dl, [external_drive_number]
+    int 0x13
+    jc disk_change_err
+
+    mov ax, [fat_size]
+    mov [file_dap+0x02], 64
+    mov [file_dap+0x04], word fat_offset
+    mov [file_dap+0x06], word 0x0000
+    mov ax, [reserved_sectors]
+    mov [file_dap+0x08], ax
+    mov [file_dap+0xa], word 0
+    mov [file_dap+0xc], word 0
+    mov [file_dap+0xe], word 0
+
+    mov ah, 0x42
+    mov si, file_dap
+    mov dl, [external_drive_number]
+    int 0x13
+    jc disk_change_err
+    
+disk_loaded:
+    mov ax, kernel_seg
+    mov es, ax
+    call print_newline
+    mov si, disk_loaded_msg
+    call print_string_green
+    call print_newline
+    iret
+disk_change_err:
+    call get_bpb_data
+    call reload_root
+    call reload_fat
+    iret
