@@ -20,9 +20,33 @@ WRITE-Command
 
 LS-Command:
 -The LS-Command shows the content of the root directory. It will also show
- the size in bytes of the files
+ the size in bytes of the files and the first cluster in the data area.
 
 RENAME-Command:
 -The RENAME-Command allows you to change the file name of a file. Be careful
  because if you rename .BIN files, you cant execute them until you rename
- them back
+ them back.
+
+DEL-Command:
+-With the DEL-Command you can delete files and programs. Note that if you
+ delete a file, there is no turning back. Altough it might seem so, you cant
+ delete the KERNEL.BIN file.
+
+LSDISK-Command:
+-To see all available disks type LSDISK. It will show you floppies
+ and hard disks.
+
+CDISK-Command:
+-The CDISK-Command allows you to use multiple disks. To change the disk, 
+ type CDISK and then the letter of the disk. A and B are floppies, which the
+ system doesnt support yet. C is the root disk, where this OS
+ is installed. D and E are external hard drives,
+ which you can use to store more data.
+
+To use all these commands simply type it like this: command <args>
+Example: cdisk D / read SYSTEM.TXT
+
+If you read or write a file, all letters have to be capital and there must be
+a dot between the filename and the extension. The maximum length of the
+filename is 8 characters. The extension has to be always three letters.
+Following characters are forbidden in the filename: 
