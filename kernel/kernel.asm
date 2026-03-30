@@ -29,29 +29,14 @@ start:
     mov sp, 0xFFFE
     sti
 
-    ;set video mode 0x12 (640x480 - 16 colors)
+    ;clear screen
     mov ax, 0x03
     int 0x10
 
-    ;mov [drive_number], 0x80
-    ;mov [sec_per_cluster], 4
-    ;mov [root_entries], word 512
-    ;mov [data_start_sec], word 65
-
-    mov al, [0x7e00]
-    mov [drive_number], 0x80
-    mov al, [0x7e00+1]
-    mov [sec_per_cluster], 4
-    mov ax, [0x7e00+2]
-    mov [root_entries], word 512
-    mov ax, [0x7e00+4]
-    mov [data_start_sec], 100
-    mov [fat_size], 32
-    mov [reserved_sectors], 4
-    mov [root_start_sec], 68
-    mov [root_size], 32
     call set_video_mode
     call print_logo
+    call get_bpb_data
+    call init_drives
 
     ;enable A20 gate
     mov si, a20_gate
@@ -265,6 +250,7 @@ shell:
 
 ; ask user for input
     call read_command
+    call check_args
     call print_newline
 
 ; execute the command
@@ -336,6 +322,26 @@ not_equal:
 equal:
     stc
     ret
+
+check_args:
+    mov si, command_buffer
+    mov cx, 100
+search_space:
+    mov al, [si]
+    cmp al, 0
+    je return_shell
+    cmp al, ' '
+    je save_arg
+    inc si
+    dec cx
+    jnz search_space
+    ret
+save_arg:
+    mov byte [si], 0
+    inc si
+    mov [argument], si  ;pointer to argument
+    ret
+
 help:
     mov si, help_msg
     call print_string_white
@@ -387,7 +393,58 @@ print_k_suffix:
     ret
 reboot:
     int 0x19
-
+rsod:
+    int 0x19
+init_drives:
+    xor cx, cx
+    mov ah, 0x42
+    mov si, program_dap
+    mov dl, 0x81
+init_drives_loop:
+    int 0x13
+    jc init_floppies
+    inc cx
+    inc dl
+    cmp dl, 0x84
+    jb init_drives_loop
+init_floppies:
+    mov [drives], cx
+    xor cx, cx
+    mov es, cx
+    mov ah, 0x02
+    mov dl, 0x00
+    mov al, 1       ;1 sector
+    mov ch, 0       ;cylinder 0
+    mov cl, 1       ;sector 1
+    mov dh, 0       ;head 0
+    mov bx, 0x7000
+    xor si, si
+init_floppies_loop:
+    int 0x13
+    jc init_drives_done
+    inc dl
+    inc si
+    cmp dl, 0x03
+    jb init_floppies_loop
+init_drives_done:
+    mov [floppies], si
+    mov ax, kernel_seg
+    mov es, ax
+    ret
+list_drives:
+    mov si, external_drives_str
+    call print_string_white
+    mov cx, [drives]
+    mov ax, cx
+    call print_decimal
+    call print_newline
+    mov si, external_floppies_str
+    call print_string_white
+    mov cx, [floppies]
+    mov ax, cx
+    call print_decimal
+    call print_newline
+    ret
 ;====================username====================
 read_username:
     mov byte [first_boot_value], 0

@@ -35,6 +35,9 @@ hwinfo_buf dw 0
 username db 15 dup(0)
 dir_files_buffer db 8 dup(0), 0
 extension_files_buffer db 3 dup(0), 0
+input_buffer: times 512 db 0
+drive_buffer: db 0
+arg_buffer: db 12 dup(0)
 
 ok_msg: db '[ OK ]', 0
 hex_out: db '0x00', 0
@@ -42,6 +45,7 @@ zero_zero: db '00', 0
 kernel_seg_str: db 'Kernel Segment: ', 0
 kernel_seg equ 0x1000
 kernel_off equ 0x0000
+fat_offset equ 0x3999
 a20_seg: dw 0
 ;commands
 help_str: db 'help', 0
@@ -57,6 +61,9 @@ write_str: db 'write', 0
 ls_str: db 'ls', 0
 rename_str: db 'rename', 0
 del_str: db 'del', 0
+lsdisk_str: db 'lsdisk', 0
+cd_str: db 'cdisk', 0
+pwd_str: db 'pwd', 0
 unknown_msg: db 'No Command or Program found', 0
 ;programs
 hwinfo_str: db 'hwinfo', 0
@@ -70,15 +77,15 @@ help_msg: db 'Commands:                                  Programs: ', 0x0D, 0x0A
           db 'CLEAR [clear the screen]                   HWINFO [hardware-information]', 0x0D, 0x0A,
           db 'VER [show current version]                 ASCII [ascii table]', 0x0D, 0x0A,
           db 'RAM [show usable ram]                      XIR [assembly texteditor]', 0x0d, 0x0a,
-          db 'WHOAMI [show current username]', 0x0d, 0x0a, 
+          db 'WHOAMI [show current username]             INFO [shows system info]', 0x0d, 0x0a, 
           db 'SETUSER [set a username]                   To execute a program just type its', 0x0d, 0x0a, 
-          db 'INFO [shows general information]           name into the terminal', 0x0d, 0x0a, 
-          db 'REBOOT [restart system]', 0x0d, 0x0a,
+          db 'REBOOT [restart system]                    name into the terminal', 0x0d, 0x0a,
           db 'READ [read a .txt or an .asm file]', 0x0d, 0x0a,
           db 'WRITE [write a .txt or .asm file]', 0x0d, 0x0a,
           db 'LS [shows content of root directory]', 0x0d, 0x0a,
           db 'RENAME [rename a file]', 0x0d, 0x0a,
-          db 'DEL [delete a file]', 0x0d, 0x0a, 0
+          db 'DEL [delete a file]', 0x0d, 0x0a,
+          db 'CD [change disk]', 0x0d, 0x0a, 0
 
 ver_msg: db 'Copyright (C) Technodon, Xiromos Filesystem-Version', 0
 
@@ -120,6 +127,14 @@ fat_size: dw 0
 reserved_sectors: dw 0
 root_start_sec: dw 0
 root_size: dw 0
+bytes_per_sec: dw 0
+fat_num: db 0
+
+drives: dw 0
+floppies: dw 0
+external_drive_number: db 0
+string_length: dw 11
+argument: dw 0
 
 program_dap:
     db 0x10                        ;size of packet (16 bytes)      [program_dap+0]
@@ -156,3 +171,15 @@ a20_enabled: db 'Enabled', 0
 a20_disabled: db 'Disabled', 0
 invalid_rename: db 'Cant rename or delete KERNEL.BIN', 0
 delete_success: db 'File deleted successfully!', 0
+
+external_drives_str: db 'External Drives: ', 0
+external_floppies_str: db 'External Floppies: ', 0
+change_drive_str: db 'Enter Drive: ', 0
+no_drive_msg: db 'No external drives found', 0
+no_valid_drive: db 'Not a valid drive', 0
+current_disk_msg: db 'You cant cd into the root disk', 0
+no_floppy_sup: db 'This system doesnt support floppies right now. This will be changed in later', 0x0a, 0x0d, 
+               db 'updates', 
+get_bpb_ok: db 'Successfully changed to root disk', 0
+disk_loaded_msg: db 'Disk changed successfully. To return, type "cd" and then "C"', 0
+no_ext_str: db 'Invalid extension', 0

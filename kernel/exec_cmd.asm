@@ -84,6 +84,21 @@ exec_cmd:
     jc delete_file
 
     mov si, command_buffer
+    mov di, lsdisk_str
+    call compare_str
+    jc list_drives
+
+    mov si, command_buffer
+    mov di, cd_str
+    call compare_str
+    jc cd_drives
+
+    mov si, command_buffer
+    mov di, pwd_str
+    call compare_str
+    jc print_working_dir
+    
+    mov si, command_buffer
     mov di, whoami_str
     call compare_str
     jc whoami

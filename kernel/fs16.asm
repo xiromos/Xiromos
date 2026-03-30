@@ -5,20 +5,16 @@ start_program:          ;interrupt for searching and loading a PROGRAM from the 
     int 0x20            ;expects the filename to search in SI
     ret
 read_file:
-    mov si, read_prompt
-    call print_string_white
-    call read_string
-    call int_read_file
-    ret
-int_read_file:
-    call print_newline
+    mov si, [argument]
+    call clear_buffer
+    call parse_arg
     mov si, read_buffer
-    mov ah, 0x01
+    mov ah, 0x01        ;expects string in SI
     int 0x22
     ret
 read_string:
     xor cx, cx
-    mov di, read_buffer
+    mov di, arg_buffer
 read_string_loop:
     xor ah, ah
     int 0x16
@@ -28,7 +24,7 @@ read_string_loop:
     je rs_handle_backspace
     cmp al, 'q'
     je quit_read_string
-    cmp cx, 11
+    cmp cx, 12
     jge read_string_loop
     stosb               ;store string in di
     mov ah, 0x0e
@@ -53,18 +49,17 @@ quit_read_string:
     mov ax, kernel_seg
     mov es, ax
     call print_newline
+    pop ax
     jmp shell
 read_string_done:
     ret
 write_file:
-    mov si, read_prompt
-    call print_string_white
-    call read_string
+    ;mov si, read_prompt
+    ;call print_string_white
+    ;call read_string
+    call clear_buffer
+    call parse_arg
     mov si, read_buffer
-    call int_write_file
-    ret
-int_write_file:
-    call print_newline
     mov ah, 0x02
     int 0x22
     ret
@@ -73,9 +68,11 @@ ls_dir:
     int 0x22
     ret
 rename_file:
-    mov si, read_prompt
-    call print_string_white
-    call read_string
+    ;mov si, read_prompt
+    ;call print_string_white
+    ;call read_string
+    call clear_buffer
+    call parse_arg
     mov si, read_buffer
     mov di, file_kernel_bin
     call compare_str
@@ -90,13 +87,113 @@ invalid_filename:
     call print_newline
     ret
 delete_file:
-    mov si, read_prompt
-    call print_string_white
-    call read_string
+    ;mov si, read_prompt
+    ;call print_string_white
+    ;call read_string
+    call clear_buffer
+    call parse_arg
     mov si, read_buffer
     mov di, file_kernel_bin
     call compare_str
     jc invalid_filename
     mov ah, 0x05
     int 0x22
+    ret
+get_bpb_data:
+    mov al, [0x7e00]
+    mov [drive_number], byte 0x80
+    mov al, [0x7e00+1]
+    mov [sec_per_cluster], byte 4
+    mov ax, [0x7e00+2]
+    mov [root_entries], word 512
+    mov ax, [0x7e00+4]
+    mov [data_start_sec], word 100
+    mov [fat_size], word 32
+    mov [reserved_sectors], word 4
+    mov [root_start_sec], word 68
+    mov [root_size], word 32
+    ret
+cd_drives:
+    ;mov si, change_drive_str
+    ;call print_string_white
+    ;call read_string
+    call clear_buffer
+    call parse_arg
+    mov si, read_buffer
+    mov ah, 0x06
+    int 0x22
+    ret
+
+print_working_dir:
+    mov dl, 0x80
+    mov bh, 0x43
+    mov cx, 5
+.loop:
+    cmp [drive_number], dl
+    je pwd
+    inc ax
+    inc bh
+    loop .loop
+pwd:
+    mov ah, 0x0e
+    mov al, bh
+    mov bl, 0x0b
+    int 0x10
+    mov al, ':'
+    int 0x10
+    mov al, '/'
+    int 0x10
+    call print_newline
+    ret
+clear_buffer:
+    mov al, ' '
+    mov di, read_buffer
+    mov cx, 11
+    rep stosb
+    ret
+parse_arg:
+    xor cx, cx
+    mov si, [argument]      ;pointer to argument (filename)
+    mov di, read_buffer
+parse_arg_loop:
+    mov al, [si]
+    cmp al, 0       ;check for 0-terminator
+    je add_spaces     ;invalid string
+    cmp al, '.'     ;chech for extension
+    je add_spaces
+    stosb           ;stores al in ES:DI
+    inc si
+    inc cx
+    cmp cx, 8
+    jnz parse_arg_loop
+add_spaces:
+    cmp cx, 8
+    je parse_ext
+    mov al, ' '     ;fill the rest of the name with spaces to achieve 8.3 format
+    stosb
+    inc cx
+    jmp add_spaces
+parse_ext:
+    cmp byte [si], '.'
+    jne parse_ext_loop
+    inc si
+parse_ext_loop:
+    xor cx, cx
+.loop:
+    mov al, [si]
+    cmp al, 0
+    je add_spaces_ext
+    stosb
+    inc si
+    inc cx
+    cmp cx, 3
+    jb .loop
+add_spaces_ext:
+    cmp cx, 3
+    je done_parse
+    mov al, ' '
+    stosb
+    inc cx
+    jmp add_spaces_ext
+done_parse:
     ret
