@@ -3,7 +3,7 @@
 <p>A lightweight, terminal-based operating system</p>
 <p>It works in 16Bit mode and is fully written in assembly</p>
 <p>The operating system is in active work, new commands, programs or features are continuous updated</p>
-<p>It contains a bootloader, kernel and 3 programs</p>
+<p>It contains a bootloader, kernel and some programs</p>
 
 <h2><u>COMMANDS</u></h2>
 <p>help: shows existing commands</p>
@@ -77,6 +77,5 @@
 <p>- LSDISK (show available disks)</p>
 <p>- CDISK (change disk to save data on it)</p>
 <p>> _</p>
-<p>DOWNLOAD disk image:</p>
-<a href="xiromos.netlify.app">Here</a><br/>
+<p>Download disk image:<a href="xiromos.netlify.app">Here</a></p><br/>
 <a href="https://youtube.com/@Xiromos">Youtube</a><br/>
