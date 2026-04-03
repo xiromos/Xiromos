@@ -4,6 +4,12 @@ load_interrupts:
 
     mov word [0x22*4+2], kernel_seg
     mov word [0x22*4], int0x22
+
+    mov word [0x23*4+2], kernel_seg
+    mov word [0x23*4], int0x23
+
+    mov word [0x24*4+2], kernel_seg
+    mov word [0x24*4], int0x24
     ret
 
 int0x22:
@@ -19,7 +25,27 @@ int0x22:
     je search_filename
     cmp ah, 0x06
     je change_drive
+    cmp ah, 0x08
+    je parse_arg_loop
+    iret
+int0x23:
+    cmp ah, 0x01
+    je openfile
+    iret
+int0x24:
+    cmp ah, 0x01
+    je check_floppy
+    cmp ah, 0x02
+    je read_flp_file
+    cmp ah, 0x03
+    je search_file_flp
+    cmp ah, 0x04
+    je del_file_flp
+    cmp ah, 0x05
+    je ren_file_flp
     iret
 
 %include "programs/ints/0x20.asm"
 %include "programs/ints/0x22.asm"
+%include "programs/ints/0x23.asm"
+%include "programs/ints/0x24.asm"

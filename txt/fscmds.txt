@@ -49,4 +49,4 @@ Example: cdisk D / read SYSTEM.TXT
 If you read or write a file, all letters have to be capital and there must be
 a dot between the filename and the extension. The maximum length of the
 filename is 8 characters. The extension has to be always three letters.
-Following characters are forbidden in the filename: 
+Following characters are forbidden in the name: " / \ [ ] : ; | = , + * ? < >

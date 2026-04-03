@@ -1,4 +1,14 @@
-;================READ OR WRITE A FILE================
+;======================================================
+;Interrupt for fileoperations, designed for the kernel
+;AH = 0x01: search a file in the root directory and print it    (filename in SI)
+;AH = 0x02: write a file to the disk, asks for user input       (filename in SI)
+;AH = 0x03: list the files of the root directory and prints it
+;AH = 0x04: rename a file, asks for user input                  (filename in SI)
+;AH = 0x05: delete a file                                       (filename in SI)
+;AH = 0x06: change the root directory to the root directory of another drive    (drive letter in SI)
+;AH = 0x08: transform a string from the name.ext format (eg: TEST.TXT) to the FAT format (eg: TEST    TXT)  (filename in SI)
+;-------------------------------------------------------
+;Copyright (C) 2026 Technodon 
 ;----------------search and read a file--------------
 search_file:
     xor ax, ax
@@ -326,6 +336,7 @@ write_root_error:
     mov es, ax
     mov ds, ax
     pop ax
+    call print_newline
     mov si, write_root_msg
     call print_string_red
     call print_newline
@@ -335,6 +346,8 @@ text_length: dw 0
 get_file_list:
     mov si, ls_header
     call print_string_white
+    mov dx, [drive_number]
+    call print_hex
     call print_newline
     xor ax, ax
     mov es, ax
@@ -438,7 +451,8 @@ file_found:
     mov si, arg_buffer
     mov di, read_buffer
     xor cx, cx
-    call parse_arg_loop
+    mov ah, 0x08
+    int 0x22
     xor ax, ax
     mov es, ax
 
@@ -474,10 +488,11 @@ delete_object:
     mov byte [es:di], 0xe5      ;deleted file marker
     call write_root
     mov bx, [es:di+0x1a]
-
+    xor ax, ax
+    mov ds, ax
 delete_loop:
-    cmp bx, 0x0000
-    je delete_loop_done
+    ;cmp bx, 0x0000
+    ;je delete_loop_done
     mov ax, bx          ;copy cluster into AX
     shl ax, 1
     mov si, fat_offset      ;offset
@@ -490,6 +505,8 @@ delete_loop:
     mov bx, dx
     jmp delete_loop
 delete_loop_done:
+    mov ax, kernel_seg
+    mov ds, ax
     call write_fat
     mov ax, kernel_seg
     mov es, ax
@@ -553,9 +570,12 @@ current_disk:
     call print_newline
     iret
 check_floppies:
-    mov si, no_floppy_sup
-    call print_string_red
-    call print_newline
+    ; mov si, no_floppy_sup
+    ; call print_string_red
+    ; call print_newline
+    ; iret
+    mov ah, 0x01        ;drive number in DI
+    int 0x24
     iret
 check_drives:
     mov si, drive_num_str
@@ -666,4 +686,47 @@ disk_change_err:
     call get_bpb_data
     call reload_root
     call reload_fat
+    iret
+
+parse_arg_loop:
+    mov al, [si]
+    cmp al, 0       ;check for 0-terminator
+    je add_spaces     ;invalid string
+    cmp al, '.'     ;chech for extension
+    je add_spaces
+    stosb           ;stores al in ES:DI
+    inc si
+    inc cx
+    cmp cx, 8
+    jnz parse_arg_loop
+add_spaces:
+    cmp cx, 8
+    je parse_ext
+    mov al, ' '     ;fill the rest of the name with spaces to achieve 8.3 format
+    stosb
+    inc cx
+    jmp add_spaces
+parse_ext:
+    cmp byte [si], '.'
+    jne parse_ext_loop
+    inc si
+parse_ext_loop:
+    xor cx, cx
+.loop:
+    mov al, [si]
+    cmp al, 0
+    je add_spaces_ext
+    stosb
+    inc si
+    inc cx
+    cmp cx, 3
+    jb .loop
+add_spaces_ext:
+    cmp cx, 3
+    je done_parse
+    mov al, ' '
+    stosb
+    inc cx
+    jmp add_spaces_ext
+done_parse:
     iret

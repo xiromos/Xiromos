@@ -64,6 +64,7 @@ del_str: db 'del', 0
 lsdisk_str: db 'lsdisk', 0
 cd_str: db 'cdisk', 0
 pwd_str: db 'pwd', 0
+textedit_str: db 'edit', 0
 unknown_msg: db 'No Command or Program found', 0
 ;programs
 hwinfo_str: db 'hwinfo', 0
@@ -85,7 +86,7 @@ help_msg: db 'Commands:                                  Programs: ', 0x0D, 0x0A
           db 'LS [shows content of root directory]', 0x0d, 0x0a,
           db 'RENAME [rename a file]', 0x0d, 0x0a,
           db 'DEL [delete a file]', 0x0d, 0x0a,
-          db 'CD [change disk]', 0x0d, 0x0a, 0
+          db 'CDISK [change disk]', 0x0d, 0x0a, 0
 
 ver_msg: db 'Copyright (C) Technodon, Xiromos Filesystem-Version', 0
 
@@ -116,6 +117,8 @@ program_calc_bin   db "CALC    BIN"
 program_hello_bin  db "HELLO   BIN"
 program_xir_bin    db "XIR     BIN"
 program_ascii_bin  db "ASCII   BIN"
+program_edit_bin db "EDIT    BIN"
+program_lsdisk_bin db "LSDISK  BIN"
 ;file_test_txt     db "TEST    TXT"
 
 root_entries: dw 0
@@ -136,6 +139,13 @@ external_drive_number: db 0
 string_length: dw 11
 argument: dw 0
 
+sec_per_track: dw 0
+num_heads: dw 0
+
+absolute_sector: db 0
+absolute_head: db 0
+absolute_cylinder: db 0
+
 program_dap:
     db 0x10                        ;size of packet (16 bytes)      [program_dap+0]
     db 0                           ;always 0                       [program_dap+1]
@@ -145,7 +155,7 @@ program_dap:
     dq 0                           ;LBA                            [program_dap+8]
 
 filecluster_notfound: db 'Invalid File CLuster', 0
-programnotfound_str: db 'No Program Found', 0
+programnotfound_str: db 'No Command or Program found', 0
 filenotfound: db 'No File Found', 0
 disk_error_msg: db 'Disk Read Error...', 0
 
@@ -161,7 +171,7 @@ write_sec_err: db 'Error while writing Data to Disk', 0
 fat_error_msg: db 'Error while writing FAT Entry', 0
 write_root_msg: db 'Error while writing directory entry', 0
 write_success_msg: db 'File created successfully', 0
-ls_header: db 'Name:          Size (bytes):', 0
+ls_header: db 'Name:          Size (bytes):         Drive number: ', 0
 ls_size: dw 0
 first_cluster: dw 0
 first_cluster_str: db 'Data Cluster: ', 0
@@ -179,7 +189,10 @@ no_drive_msg: db 'No external drives found', 0
 no_valid_drive: db 'Not a valid drive', 0
 current_disk_msg: db 'You cant cd into the root disk', 0
 no_floppy_sup: db 'This system doesnt support floppies right now. This will be changed in later', 0x0a, 0x0d, 
-               db 'updates', 
+               db 'updates', 0
 get_bpb_ok: db 'Successfully changed to root disk', 0
 disk_loaded_msg: db 'Disk changed successfully. To return, type "cd" and then "C"', 0
 no_ext_str: db 'Invalid extension', 0
+flp_error_msg: db 'Error while reading floppy disk', 0
+floppy_read_success: db 'Successfully changed to floppy disk', 0
+flp_file_error: db 'Error while reading file', 0

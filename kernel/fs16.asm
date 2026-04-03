@@ -8,9 +8,18 @@ read_file:
     mov si, [argument]
     call clear_buffer
     call parse_arg
+
+    cmp byte [drive_number], 0x01
+    jle read_file_flp
+
+    ; mov si, read_buffer
+    ; mov ah, 0x01        ;expects string in SI
+    ; int 0x22
+    ; ret
+read_file_flp:
     mov si, read_buffer
-    mov ah, 0x01        ;expects string in SI
-    int 0x22
+    mov ah, 0x02
+    int 0x24
     ret
 read_string:
     xor cx, cx
@@ -60,8 +69,16 @@ write_file:
     call clear_buffer
     call parse_arg
     mov si, read_buffer
-    mov ah, 0x02
-    int 0x22
+
+    cmp byte [drive_number], 0x01
+    jle write_file_flp
+
+    ; mov ah, 0x02
+    ; int 0x22
+    ; ret
+write_file_flp:
+    mov ah, 0x03
+    int 0x24
     ret
 ls_dir:
     mov ah, 0x03
@@ -77,8 +94,16 @@ rename_file:
     mov di, file_kernel_bin
     call compare_str
     jc invalid_filename
-    mov ah, 0x04
-    int 0x22
+
+    cmp byte [drive_number], 0x01
+    jle rename_file_flp
+
+    ; mov ah, 0x04
+    ; int 0x22
+    ; ret
+rename_file_flp:
+    mov ah, 0x05
+    int 0x24
     ret
 invalid_filename:
     call print_newline
@@ -96,12 +121,20 @@ delete_file:
     mov di, file_kernel_bin
     call compare_str
     jc invalid_filename
-    mov ah, 0x05
-    int 0x22
+    
+    cmp byte [drive_number], 0x01
+    jle delete_file_flp
+
+    ; mov ah, 0x05
+    ; int 0x22
+    ; ret
+delete_file_flp:
+    mov ah, 0x04
+    int 0x24
     ret
 get_bpb_data:
     mov al, [0x7e00]
-    mov [drive_number], byte 0x80
+    mov [drive_number], 0x80
     mov al, [0x7e00+1]
     mov [sec_per_cluster], byte 4
     mov ax, [0x7e00+2]
@@ -131,7 +164,7 @@ print_working_dir:
 .loop:
     cmp [drive_number], dl
     je pwd
-    inc ax
+    inc dl
     inc bh
     loop .loop
 pwd:
@@ -155,45 +188,84 @@ parse_arg:
     xor cx, cx
     mov si, [argument]      ;pointer to argument (filename)
     mov di, read_buffer
-parse_arg_loop:
-    mov al, [si]
-    cmp al, 0       ;check for 0-terminator
-    je add_spaces     ;invalid string
-    cmp al, '.'     ;chech for extension
-    je add_spaces
-    stosb           ;stores al in ES:DI
-    inc si
-    inc cx
-    cmp cx, 8
-    jnz parse_arg_loop
-add_spaces:
-    cmp cx, 8
-    je parse_ext
-    mov al, ' '     ;fill the rest of the name with spaces to achieve 8.3 format
-    stosb
-    inc cx
-    jmp add_spaces
-parse_ext:
-    cmp byte [si], '.'
-    jne parse_ext_loop
-    inc si
-parse_ext_loop:
-    xor cx, cx
+    mov ah, 0x08            ;filename in SI, buffer in DI, CX = 0
+    int 0x22
+    ret
+; parse_arg_loop:
+;     mov al, [si]
+;     cmp al, 0       ;check for 0-terminator
+;     je add_spaces     ;invalid string
+;     cmp al, '.'     ;chech for extension
+;     je add_spaces
+;     stosb           ;stores al in ES:DI
+;     inc si
+;     inc cx
+;     cmp cx, 8
+;     jnz parse_arg_loop
+; add_spaces:
+;     cmp cx, 8
+;     je parse_ext
+;     mov al, ' '     ;fill the rest of the name with spaces to achieve 8.3 format
+;     stosb
+;     inc cx
+;     jmp add_spaces
+; parse_ext:
+;     cmp byte [si], '.'
+;     jne parse_ext_loop
+;     inc si
+; parse_ext_loop:
+;     xor cx, cx
+; .loop:
+;     mov al, [si]
+;     cmp al, 0
+;     je add_spaces_ext
+;     stosb
+;     inc si
+;     inc cx
+;     cmp cx, 3
+;     jb .loop
+; add_spaces_ext:
+;     cmp cx, 3
+;     je done_parse
+;     mov al, ' '
+;     stosb
+;     inc cx
+;     jmp add_spaces_ext
+; done_parse:
+;     ret
+
+search_for_program:
+    mov di, command_buffer
+    mov cx, 11
 .loop:
-    mov al, [si]
-    cmp al, 0
-    je add_spaces_ext
+    cmp byte [di], 0
+    jne .next_char
+    mov byte [di], 0x20      ;space
+.next_char:
+    inc di
+    loop .loop
+
+    mov di, command_buffer+8
+    mov al, 'B'
     stosb
-    inc si
-    inc cx
-    cmp cx, 3
-    jb .loop
-add_spaces_ext:
-    cmp cx, 3
-    je done_parse
-    mov al, ' '
+    mov al, 'I'
     stosb
-    inc cx
-    jmp add_spaces_ext
-done_parse:
+    mov al, 'N'
+    stosb
+    
+    mov si, command_buffer
+    mov di, read_buffer
+    mov cx, 11
+    rep movsb
+    mov si, read_buffer
+    ;call print_buffer
+    int 0x20
+    ret
+print_buffer:
+    mov cx, 11
+    mov ah, 0x0e
+.loop:
+    lodsb
+    int 0x10
+    loop .loop
     ret

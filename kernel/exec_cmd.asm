@@ -2,6 +2,7 @@ bits 16
 [org 0x0000]
 
 exec_cmd:
+    
     ; compare input with valid commands
     mov si, command_buffer
     mov di, help_str
@@ -59,6 +60,18 @@ exec_cmd:
     jc start_program
 
     mov si, command_buffer
+    mov di, textedit_str
+    call compare_str
+    mov si, program_edit_bin
+    jc start_program
+
+    mov si, command_buffer
+    mov di, lsdisk_str
+    call compare_str
+    mov si, program_lsdisk_bin
+    jc list_drives       ;list drives
+
+    mov si, command_buffer
     mov di, read_str
     call compare_str
     jc read_file
@@ -112,10 +125,11 @@ exec_cmd:
     mov di, setuser_str
     call compare_str
     jc read_username
-    
+
     cmp byte [command_buffer], 0x00
     je return_shell
 
+    call search_for_program
     ; if unknown command
-    call unknown_cmd
+    ;call unknown_cmd
     ret

@@ -11,8 +11,6 @@ start:
     mov si, hello_msg
     mov bl, 0x0b
     call print_start
-    xor ah, ah
-    int 0x16
     retf
 print_start:
     mov ah, 0x0e

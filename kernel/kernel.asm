@@ -34,8 +34,8 @@ start:
     int 0x10
 
     call set_video_mode
-    call print_logo
     call get_bpb_data
+    call print_logo
     call init_drives
 
     ;enable A20 gate
@@ -248,7 +248,12 @@ shell:
     mov si, prompt
     call print_string_white
 
-; ask user for input
+    mov al, ' '
+    mov di, command_buffer
+    mov cx, 12
+    rep stosb
+    
+; ask user for input 
     call read_command
     call check_args
     call print_newline

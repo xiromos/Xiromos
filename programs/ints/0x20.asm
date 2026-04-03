@@ -1,8 +1,15 @@
+;======================================================
+;Interrupt for loading and executing a program from the root directory
+;Expects the filename in FAT format (eg: "CALC    BIN") in SI
+;loads the program at 0x5000:0x0000
+;----------------------------------
+;Copyright (C) 2026 Technodon
+;======================================================
 search_program:
     xor ax, ax
     mov es, ax
     xor dx, dx
-    mov dx, word [root_entries]
+    mov dx, [root_entries]
     mov di, 0x0500          ;search kernel at [ES:DI]
 search_program_loop:
     mov cx, 11
