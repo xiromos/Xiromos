@@ -399,6 +399,31 @@ print_k_suffix:
 reboot:
     int 0x19
 rsod:
+    mov ax, 0x12
+    int 0x10
+
+    mov ax, 0x1010    ;set DAC register
+    mov bx, 0         ;black 
+    mov dh, 63        ;red
+    mov ch, 0         ;green
+    mov cl, 0         ;blue
+    int 0x10
+    mov si, rsod_header
+    call print_string_white
+    call print_newline
+    call print_newline
+
+    mov si, rsod_str
+    call print_string_white
+    call print_newline
+
+    mov si, rsod_msg
+    call print_string_white
+    call print_newline
+    mov si, rsod_link
+    call print_string_white
+    xor ah, ah
+    int 0x16
     int 0x19
 init_drives:
     xor cx, cx

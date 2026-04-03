@@ -9,13 +9,13 @@ read_file:
     call clear_buffer
     call parse_arg
 
-    cmp byte [drive_number], 0x01
-    jle read_file_flp
+    cmp byte [drive_number], 0x80
+    jb read_file_flp
 
-    ; mov si, read_buffer
-    ; mov ah, 0x01        ;expects string in SI
-    ; int 0x22
-    ; ret
+    mov si, read_buffer
+    mov ah, 0x01        ;expects string in SI
+    int 0x22
+    ret
 read_file_flp:
     mov si, read_buffer
     mov ah, 0x02
@@ -70,12 +70,12 @@ write_file:
     call parse_arg
     mov si, read_buffer
 
-    cmp byte [drive_number], 0x01
-    jle write_file_flp
+    cmp byte [drive_number], 0x80
+    jb write_file_flp
 
-    ; mov ah, 0x02
-    ; int 0x22
-    ; ret
+    mov ah, 0x02
+    int 0x22
+    ret
 write_file_flp:
     mov ah, 0x03
     int 0x24
@@ -95,12 +95,12 @@ rename_file:
     call compare_str
     jc invalid_filename
 
-    cmp byte [drive_number], 0x01
-    jle rename_file_flp
+    cmp byte [drive_number], 0x80
+    jb rename_file_flp
 
-    ; mov ah, 0x04
-    ; int 0x22
-    ; ret
+    mov ah, 0x04
+    int 0x22
+    ret
 rename_file_flp:
     mov ah, 0x05
     int 0x24
@@ -122,12 +122,12 @@ delete_file:
     call compare_str
     jc invalid_filename
     
-    cmp byte [drive_number], 0x01
-    jle delete_file_flp
+    cmp byte [drive_number], 0x80
+    jb delete_file_flp
 
-    ; mov ah, 0x05
-    ; int 0x22
-    ; ret
+    mov ah, 0x05
+    int 0x22
+    ret
 delete_file_flp:
     mov ah, 0x04
     int 0x24
