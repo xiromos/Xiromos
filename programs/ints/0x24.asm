@@ -144,7 +144,7 @@ load_flp_fat:
     mov dl, [drive_number]
     xor bx, bx
     mov es, bx
-    mov bx, 0x3999
+    mov bx, fat_offset
     int 0x13
     jc floppy_read_error
     ret
@@ -220,31 +220,34 @@ flp_load_file:
     int 0x13
     jc flp_file_err
 
-    mov cl, [sec_per_cluster]
-    mov ax, 512
-    mul cl
-    add bx, ax
+    add bx, 512
 
     mov ax, [program_cluster]
     mov cx, 3
     mul cx
     shr ax, 1      ; / 2
 
+    xor dx, dx
+    mov ds, dx
     mov si, fat_offset
     add si, ax
+    mov ax, [si]
 
-    test [program_cluster], 1
+    push bx
+    mov bx, [program_cluster]
+    test bl, 1
+    pop bx
     jz .even
 .odd:
-    mov ax, [si]
     shr ax, 4
     jmp .done
 .even:
-    mov ax, [si]
     and ax, 0x0fff
 .done:
-    mov [program_cluster], ax
-    cmp ax, 0xff8
+    mov dx, kernel_seg
+    mov ds, dx
+    mov word [program_cluster], ax
+    cmp ax, 0x0ff0
     jb .loop
     ret
 flp_print_file:
@@ -314,29 +317,56 @@ search_file_flp_loop:
     mov es, ax
     iret
 flp_free_entry:
+    ;writes only one cluster! (512 bytes)
     mov bx, 2       ;cluster 0 and 1 are reserved
-    xor ax, ax
-    mov ds, ax
-flp_search_fat:
+.loop:
+    mov ax, bx
+    mov cx, bx
+    shr cx, 1       ; bx / 2
+    add ax, cx      ;ax * 1.5
+    xor dx, dx
+    mov ds, dx
     mov si, fat_offset
-    mov ax, bx            ;cluster number in ax
-    shl ax, 1             ;ax * 2
     add si, ax
-    mov dx, [si]
-    cmp dx, 0x000        ;the entries are 1.5 byte arrays
-    je flp_free_cluster       ;0x000 = free entry
+
+    test bx, 1
+    jz .even_cluster
+.odd:
+    mov ax, [si]
+    shr ax, 4
+    jmp .done_search
+.even_cluster:
+    mov ax, [si]
+    and ax, 0x0fff
+.done_search:
+    cmp ax, 0x000
+    je flp_free_cluster
     inc bx
-    jmp flp_search_fat
+    jmp .loop
 flp_free_cluster:
-    mov ax, 0xff8        ;end of cluster marker
-    mov dx, bx            ;copy bx into dx
-    shl dx, 1             ;same as dx * 2 (cluster entry is 2 bytes long)
-    mov si, fat_offset        ;adress of the FAT
-    add si, dx            ;add the FAT adress our cluster number
-    mov [si], ax          ;mark this FAT adress as reserved
+    test bx, 1
+    jz .mark_odd_cluster
+
+.mark_even_cluster:
+    mov al, [si]
+    mov ah, [si+1]
+    and ah, 0xf0
+    or al, 0xff
+
+    mov [si], al
+    mov [si+1], ah
+    jmp .done_marker
+.mark_odd_cluster:
+    and al, 0x0f
+    or al, 0xf0
+    mov ah, 0xff
+
+    mov [si], al
+    mov [si+1], ah
+.done_marker:
     mov ax, kernel_seg
     mov ds, ax
-    push bx
+    mov [fat_cluster], bx
     call flp_write_fat
     call flp_get_data
     jmp flp_write_entry
@@ -353,7 +383,7 @@ flp_write_fat:
     mov cl, [absolute_sector]
     mov dh, [absolute_head]
     mov dl, [drive_number]
-    mov bx, 0x3999
+    mov bx, fat_offset
     int 0x13
     jc flp_fat_error
     ret
@@ -409,15 +439,14 @@ flp_get_data:
 flp_write_entry:
     xor ax, ax
     mov es, ax
-    pop bx
     pop si
-    push bx
     mov cx, 11
     push di
     rep movsb       ;copies [ds:si] to [es:di]
     pop di
     mov byte [es:di+0x0b], 0x20     ;archive
     
+    mov bx, [fat_cluster]
     mov [es:di+0x1a], bx            ;first cluster
     mov cx, [text_length]
     mov [es:di+0x1c], cx            ;!!!
@@ -426,14 +455,14 @@ flp_write_entry:
     call flp_write_root
     mov si, input_buffer
 
-    pop bx
-    mov ax, bx
+    mov ax, [fat_cluster]
+    call print_decimal
     call cluster_to_sec
     call lba_to_chs
 
     xor cx, cx
     mov ah, 0x03
-    mov al, 1           ;!!! need to calculate it dynamic
+    mov al, [sec_per_cluster]           ;!!! need to calculate it dynamic
     mov ch, [absolute_cylinder]
     mov cl, [absolute_sector]
     mov dh, [absolute_head]
@@ -462,20 +491,39 @@ del_file_flp:
     mov bx, [es:di+0x1a]
     xor ax, ax
     mov ds, ax
-    mov es, ax
 flp_delete_loop:
 
     mov ax, bx          ;copy cluster into AX
-    shl ax, 1
-    mov si, fat_offset      ;offset
+    shr ax, 1           ; ax / 2
+    add ax, bx
+    
+    mov si, fat_offset
     add si, ax
-    mov dx, [si]        ;next cluster
-
-    mov word [si], 0x000
-    cmp dx, 0xff8
-    jae flp_delete_loop_done
+    mov ax, [si]
+    test bx, 1
+    jz .even
+.odd:
+    shr ax, 4
+    jmp .next_entry
+.even:
+    and ax, 0x0fff
+.next_entry:
+    mov dx, ax          ;save cluster
+    test bx, 1
+    jz .clear_even
+.clear_odd:
+    mov ax, [si]
+    and ax, 0x000f
+    mov [si], ax
+    jmp .continue
+.clear_even:
+    mov ax, [si]
+    and ax, 0xf000
+    mov [si], ax
+.continue:
     mov bx, dx
-    jmp flp_delete_loop
+    cmp bx, 0x0ff0
+    jb flp_delete_loop
 flp_delete_loop_done:
     mov ax, kernel_seg
     mov ds, ax
@@ -486,7 +534,7 @@ flp_delete_loop_done:
     call print_string_green
     call print_newline
     iret
-
+;-----------------------------------------rename a file of the floppy disk----------------------------------
 ren_file_flp:
     call flp_search_root
 
