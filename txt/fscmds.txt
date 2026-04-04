@@ -15,8 +15,9 @@ READ-Command
 WRITE-Command
 -The WRITE-Command writes an empty .TXT or .ASM file to the disk. 
  You have to name this file in the 8.3 format.
--After creating the file you can open the file with the XIR Texteditor.
- It will highlight Assembly syntax in .ASM files.
+-After creating the file you can open the file with the XIR Texteditor
+ or the EDIT program. The edit program will soon highlight Assembly in
+ .ASM files.
 
 LS-Command:
 -The LS-Command shows the content of the root directory. It will also show
