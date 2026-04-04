@@ -2,6 +2,7 @@
 ;interrupt for reading and writing from a FAT12 formatted floppy disk
 ;AH = 0x01: load root directory and FAT from the floppy into memory
 ;AH = 0x02: read a file from the floppy disk            (filename in SI)
+;AH = 0x03: write a max. 512 byte file to the disk      (filename in SI)
 ;Copyright (C) 2026 Technodon
 ;======================================================
 check_floppy:
@@ -226,6 +227,7 @@ flp_load_file:
     mov cx, 3
     mul cx
     shr ax, 1      ; / 2
+    mov cx, [program_cluster]
 
     xor dx, dx
     mov ds, dx
@@ -233,10 +235,7 @@ flp_load_file:
     add si, ax
     mov ax, [si]
 
-    push bx
-    mov bx, [program_cluster]
-    test bl, 1
-    pop bx
+    test cx, 1
     jz .even
 .odd:
     shr ax, 4
@@ -345,7 +344,7 @@ flp_free_entry:
     jmp .loop
 flp_free_cluster:
     test bx, 1
-    jz .mark_odd_cluster
+    jnz .mark_odd_cluster
 
 .mark_even_cluster:
     mov al, [si]
@@ -453,10 +452,8 @@ flp_write_entry:
 
     mov word [es:di+0x1e], 0        ;high word
     call flp_write_root
-    mov si, input_buffer
 
     mov ax, [fat_cluster]
-    call print_decimal
     call cluster_to_sec
     call lba_to_chs
 
@@ -467,8 +464,8 @@ flp_write_entry:
     mov cl, [absolute_sector]
     mov dh, [absolute_head]
     mov dl, [drive_number]
-    mov ax, kernel_seg
-    mov es, ax
+    mov bx, kernel_seg
+    mov es, bx
     mov bx, input_buffer
     int 0x13
     jc write_sectors_error
@@ -563,6 +560,90 @@ ren_file_flp:
     mov ax, kernel_seg
     mov es, ax
     iret
+;------------------------------------------start a program on the floppy disk-----------------------------------
+flp_search_program:
+    xor di, di
+    mov es, di
+    mov di, 0x500
+    mov dx, [root_entries]
+flp_search_program_loop:
+    mov cx, 11
+    push si
+    push di
+    repe cmpsb
+    pop di
+    pop si
+    je flp_program_found
 
+    add di, 32
+    dec dx
+    jnz flp_search_program_loop
+
+    ;....search program in other directories....
+    mov ax, kernel_seg
+    mov es, ax
+    mov si, programnotfound_str
+    call print_string_red
+    call print_newline
+    iret
+
+flp_program_found:
+    mov ax, [es:di+0x1a]
+    mov [program_cluster], ax
+
+    mov ax, 0x5000
+    mov es, ax
+    xor bx, bx
+
+.loop:
+    mov ax, [program_cluster]
+    call cluster_to_sec
+    call lba_to_chs
+
+    mov ah, 0x02
+    mov al, [sec_per_cluster]
+    mov ch, [absolute_cylinder]
+    mov cl, [absolute_sector]
+    mov dh, [absolute_head]
+    mov dl, [drive_number]
+    int 0x13
+    jc disk_error
+
+    add bx, 512
+
+    mov ax, [program_cluster]
+    mov cx, 3
+    mul cx
+    shr ax, 1      ; / 2
+
+    xor dx, dx
+    mov ds, dx
+    mov si, fat_offset
+    add si, ax
+    mov ax, [si]
+
+    push bx
+    mov bx, [program_cluster]
+    test bl, 1
+    pop bx
+    jz .even
+.odd:
+    shr ax, 4
+    jmp .done
+.even:
+    and ax, 0x0fff
+.done:
+    mov dx, kernel_seg
+    mov ds, dx
+    mov word [program_cluster], ax
+    cmp ax, 0x0ff0
+    jb .loop
+
+    call far 0x5000:0x0000
+    mov ax, kernel_seg
+    mov es, ax
+    mov ds, ax
+    call print_newline
+    iret
 ;-------------------------------create a directory on the floppy disk---------------------------------
 ;-------------------------------delete a directory on the floppy disk---------------------------------
