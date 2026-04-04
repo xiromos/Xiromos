@@ -43,6 +43,8 @@ int0x24:
     je del_file_flp
     cmp ah, 0x05
     je ren_file_flp
+    cmp ah, 0x08
+    je flp_search_program
     iret
 
 %include "programs/ints/0x20.asm"
