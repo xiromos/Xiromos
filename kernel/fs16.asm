@@ -2,7 +2,15 @@ bits 16
 [org 0x0000]
 
 start_program:          ;interrupt for searching and loading a PROGRAM from the disk
+
+    cmp byte [drive_number], 0x80
+    jb start_program_flp
+
     int 0x20            ;expects the filename to search in SI
+    ret
+start_program_flp:
+    mov ah, 0x08
+    int 0x24
     ret
 read_file:
     mov si, [argument]
@@ -259,6 +267,10 @@ search_for_program:
     rep movsb
     mov si, read_buffer
     ;call print_buffer
+
+    cmp byte [drive_number], 0x80
+    jb start_program_flp
+
     int 0x20
     ret
 print_buffer:

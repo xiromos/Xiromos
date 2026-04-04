@@ -201,6 +201,6 @@ no_ext_str: db 'Invalid extension', 0
 buffer_adress: dw 0
 ;floppy
 flp_error_msg: db 'Error while reading floppy disk', 0
-floppy_read_success: db 'Successfully changed to floppy disk', 0
+floppy_read_success: db 'Successfully switched to floppy disk', 0
 flp_file_error: db 'Error while reading file', 0
 fat_cluster: dw 0

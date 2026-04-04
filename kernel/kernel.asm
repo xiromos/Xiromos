@@ -399,6 +399,8 @@ print_k_suffix:
 reboot:
     int 0x19
 rsod:
+    mov ax, kernel_seg
+    mov ds, ax
     mov ax, 0x12
     int 0x10
 
