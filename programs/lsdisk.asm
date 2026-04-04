@@ -13,7 +13,7 @@ start:
 
 init_drives:
     xor cx, cx
-    mov ah, 0x08
+    mov ah, 0x42
     mov si, dap
     mov dl, 0x81
 init_drives_loop:
@@ -24,7 +24,7 @@ init_drives_loop:
     cmp dl, 0x84
     jb init_drives_loop
 init_floppies:
-    mov [drive], 2
+    mov [drive], cx
     xor cx, cx
     mov es, cx
     mov ah, 0x02
@@ -176,7 +176,8 @@ print_dec:
     ret
 exit:
     retf
-
+drive: dw 0
+floppy: dw 0
 a_str: db 'A:/      ', 0
 b_str: db 'B:/      ', 0
 c_str: db 'C:/      ', 0
@@ -187,7 +188,7 @@ header: db 'Disk:       Status:         Size:           Used:', 0x0a, 0x0d, 0
 root_disk_str: db 'Root Disk', 0
 dap:
     db 0x10
-    db 0
+    db 1
     dw 0
     dw 0x0000
     dw 0x0000
@@ -195,5 +196,3 @@ dap:
 active_str: db 'Active', 0
 floppies_str: db 'Floppies: ', 0
 drives_str: db 'Drives: ', 0
-drive: dw 0
-floppy: dw 0
