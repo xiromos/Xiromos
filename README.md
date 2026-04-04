@@ -69,6 +69,8 @@
 <p>- argument support</p>
 <p>- better command interpreter</p>
 <p>- multi disk support</p>
+<p>- file operation on hard disks AND floppy disks</p>
+<p>- programs run on both disks</p>
 <h3>New commands:</h3>
 <p>- READ (read a text file)</p>
 <p>- WRITE (write a text file)</p>
@@ -77,5 +79,5 @@
 <p>- LSDISK (show available disks)</p>
 <p>- CDISK (change disk to save data on it)</p>
 <p>> _</p>
-<p>Download disk image:<a href="xiromos.netlify.app">Here</a></p><br/>
+<p>Download disk image <a href="xiromos.netlify.app">here</a></p><br/>
 <a href="https://youtube.com/@Xiromos">Youtube</a><br/>
