@@ -28,10 +28,19 @@ start:
     call detect_cpu
     call detect_cpu_features
     call print_cores
-
     call print_newline
+    call print_newline
+    
+    mov si, disk_size
+    call print_start
+    call get_disksize
     call detect_drives
     call print_sectors
+    call print_newline
+
+    mov si, keyboard_str
+    call print_start
+    call get_keyboard
     call print_newline
 
     mov si, quit_msg
@@ -274,6 +283,42 @@ print_sectors:
     call print_start_green
     call print_newline
     ret
+get_keyboard:
+    mov ah, 0xb
+    mov bl, 0
+    int 0x16
+
+    cmp al, 0
+    je .xt
+    cmp al, 0x03
+    je .ps2
+
+.xt:
+    mov si, xt_str
+    call print_start
+    call print_newline
+    ret
+.ps2:
+    mov si, ps2_str
+    call print_start
+    call print_newline
+    ret
+
+get_disksize:
+    xor ax, ax
+    mov es, ax
+    mov di, 0x7c00
+
+    mov ax, [es:di+19]
+    mov ebx, 512
+    mul ebx
+
+    mov ecx, 1024*1024
+    div ecx
+
+    call print_decimal
+    call print_M_suffix
+    ret
 quit:
     xor ah, ah
     int 0x16
@@ -325,5 +370,10 @@ ext2_mem_16k_blocks dw 0
 ext2_mem_64k_blocks dw 0
 ext2_mem_mb         dw 0
 
+xt_str: db 'XT Keyboard', 0
+ps2_str: db 'PS2 Keyboard', 0
+keyboard_str: db 'Keyboard Type: ', 0
+
 sector_number: db 'Number of Sectors: ', 0
+disk_size: db 'Disk Size: ', 0
 total_sectors: times 5 db '0'
