@@ -71,7 +71,7 @@ To execute any command of program type the name of the command/program into the 
 qemu-system-i386 -hda disk.img
 ```
 
-# TODO
+## TODO
 
 - PS/2 Mouse driver
 - implement own Assembler
@@ -79,3 +79,13 @@ qemu-system-i386 -hda disk.img
 - fix the filesystem API
 - make own fonts work
 - maybe FAT32 support
+
+## HOW TO USE FAT8<br>
+
+To use Xiromos's own FAT version, you first have to create an empty floppy disk<br>
+`dd if=/dev/zero of=floppy8.img bs=1K count=128`<br>
+This will create an empty 128KB disk image. This is the maximum size this version of FAT8 can handle.<br>
+Then you have to write the first sector:<br>
+`dd if=FAT8/boot.asm of=floppy8.img conv=notrunc`<br>
+And in QEMU:<br>
+`qemu-system-i386 -hda disk.img -fda floppy8.img`<br>
