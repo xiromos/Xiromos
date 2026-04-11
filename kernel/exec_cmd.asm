@@ -7,7 +7,8 @@ exec_cmd:
     mov si, command_buffer
     mov di, help_str
     call compare_str
-    jc help
+    mov si, program_help_bin
+    jc start_program
 
     mov si, command_buffer
     mov di, clear_str
@@ -102,14 +103,29 @@ exec_cmd:
     jc list_drives
 
     mov si, command_buffer
-    mov di, cd_str
+    mov di, cdisk_str
     call compare_str
     jc cd_drives
+
+    mov si, command_buffer
+    mov di, mkdir_str
+    call compare_str
+    jc make_dir
 
     mov si, command_buffer
     mov di, pwd_str
     call compare_str
     jc print_working_dir
+
+    mov si, command_buffer
+    mov di, cd_str
+    call compare_str
+    jc change_dir
+
+    mov si, command_buffer
+    mov di, deldir_str
+    call compare_str
+    jc delete_dir
     
     mov si, command_buffer
     mov di, whoami_str
@@ -125,6 +141,11 @@ exec_cmd:
     mov di, setuser_str
     call compare_str
     jc read_username
+
+    mov si, command_buffer
+    mov di, shutdown_str
+    call compare_str
+    jc shutdown
 
     cmp byte [command_buffer], 0x00
     je return_shell

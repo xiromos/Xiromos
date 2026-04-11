@@ -46,6 +46,8 @@ kernel_seg_str: db 'Kernel Segment: ', 0
 kernel_seg equ 0x1000
 kernel_off equ 0x0000
 fat_offset equ 0x3999
+dir_seg    equ 0x9000
+prog_seg   equ 0x5000
 a20_seg: dw 0
 ;commands
 help_str: db 'help', 0
@@ -62,9 +64,13 @@ ls_str: db 'ls', 0
 rename_str: db 'rename', 0
 del_str: db 'del', 0
 lsdisk_str: db 'lsdisk', 0
-cd_str: db 'cdisk', 0
+cdisk_str: db 'cdisk', 0
 pwd_str: db 'pwd', 0
 textedit_str: db 'edit', 0
+cd_str: db 'cd', 0
+mkdir_str: db 'mkdir', 0
+deldir_str: db 'deldir', 0
+shutdown_str: db 'shutdown', 0
 unknown_msg: db 'No Command or Program found', 0
 ;programs
 hwinfo_str: db 'hwinfo', 0
@@ -78,7 +84,7 @@ help_msg: db 'Commands:                                  Programs: ', 0x0D, 0x0A
           db 'CLEAR [clear the screen]                   HWINFO [hardware-information]', 0x0D, 0x0A,
           db 'VER [show current version]                 ASCII [ascii table]', 0x0D, 0x0A,
           db 'RAM [show usable ram]                      XIR [assembly texteditor]', 0x0d, 0x0a,
-          db 'WHOAMI [show current username]             INFO [shows system info]', 0x0d, 0x0a, 
+          db 'WHOAMI [show current username]             XFETCH [shows system info]', 0x0d, 0x0a, 
           db 'SETUSER [set a username]                   To execute a program just type its', 0x0d, 0x0a, 
           db 'REBOOT [restart system]                    name into the terminal', 0x0d, 0x0a,
           db 'READ [read a .txt or an .asm file]', 0x0d, 0x0a,
@@ -119,12 +125,18 @@ program_xir_bin    db "XIR     BIN"
 program_ascii_bin  db "ASCII   BIN"
 program_edit_bin db "EDIT    BIN"
 program_lsdisk_bin db "LSDISK  BIN"
-;file_test_txt     db "TEST    TXT"
+program_help_bin: db "HELP    BIN"
+dir_programs db "PROGRAMS   "
+fat8_str db "FAT8    "
+dot_str db ".          "
 ;red screen of death
 rsod_header: db 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB2, 0xB2, 0xB2, 0xB2, 0xB2, 0xB2, 0xDB, 0xDB, ' ','System Error', ' ', 0xDB, 0xDB, 0xB2, 0xB2, 0xB2, 0xB2, 0xB2, 0xB2, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB1, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0xB0, 0
 rsod_str: db '      :(', 0
 rsod_msg: db '      Your system ran into a serious problem. Press any key to reboot...', 0
 rsod_link: db '         ', 0xaf, ' More Information: https://github.com/xiromos/Xiromos', 0
+int9_addr:
+    dw 0
+    dw 0
 ;filesystem
 root_entries: dw 0
 program_cluster: dw 0
@@ -150,6 +162,8 @@ num_heads: dw 0
 absolute_sector: db 0
 absolute_head: db 0
 absolute_cylinder: db 0
+fat8: db 0
+cluster8: db 0
 
 program_dap:
     db 0x10                        ;size of packet (16 bytes)      [program_dap+0]
@@ -186,6 +200,8 @@ a20_enabled: db 'Enabled', 0
 a20_disabled: db 'Disabled', 0
 invalid_rename: db 'Cant rename or delete KERNEL.BIN', 0
 delete_success: db 'File deleted successfully!', 0
+sys_file_str: db 'This file is a system file. You cant delete it', 0
+kernel_exec_err: db 'Cant execute kernel file', 0
 ;external drives
 external_drives_str: db 'External Drives: ', 0
 external_floppies_str: db 'External Floppies: ', 0
@@ -196,7 +212,7 @@ current_disk_msg: db 'You cant cd into the root disk', 0
 no_floppy_sup: db 'This system doesnt support floppies right now. This will be changed in later', 0x0a, 0x0d, 
                db 'updates', 0
 get_bpb_ok: db 'Successfully changed to root disk', 0
-disk_loaded_msg: db 'Disk changed successfully. To return, type "cd" and then "C"', 0
+disk_loaded_msg: db 'Disk changed successfully. To return, type "cdisk C"', 0
 no_ext_str: db 'Invalid extension', 0
 buffer_adress: dw 0
 ;floppy
@@ -204,3 +220,20 @@ flp_error_msg: db 'Error while reading floppy disk', 0
 floppy_read_success: db 'Successfully switched to floppy disk', 0
 flp_file_error: db 'Error while reading file', 0
 fat_cluster: dw 0
+;directories
+no_dir_str: db 'This is not a directory', 0
+dir_success: db 'Directory created successfully', 0
+
+sub_dir: db 0       ;0 = root, 1 = sub
+parent_dir: dw 0   ;cluster of the parent directory, 0 = root
+current_dir: dw 0       ;cluster of the current directory, 0 = root
+
+changed_dir_root: db 'Successfully changed to root directory', 0
+changed_dir_msg: db 'Successfully changed directory. To return to root type "cd /"', 0
+root_only: db 'This function is root-only', 0
+dot_entry_error: db 'Error while writing dot entries', 0
+load_dir_err_msg: db 'Error while loading directory. You are in the root directory now', 0
+dot_dot_str: db '..'
+no_dot_str: db 'Dot Entry not found', 0
+dir_str: db '<dir>', 0
+read_dir_str: db 'This is a directory', 0

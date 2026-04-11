@@ -25,9 +25,17 @@ read_file:
     int 0x22
     ret
 read_file_flp:
+    cmp byte [fat8], 1
+    je read_file_flp8
+
     mov si, read_buffer
     mov ah, 0x02
     int 0x24
+    ret
+read_file_flp8:
+    mov si, read_buffer
+    mov ah, 0x01
+    int 0x30
     ret
 read_string:
     xor cx, cx
@@ -85,8 +93,15 @@ write_file:
     int 0x22
     ret
 write_file_flp:
+    cmp byte [fat8], 1
+    je write_file_flp8
+
     mov ah, 0x03
     int 0x24
+    ret
+write_file_flp8:
+    mov ah, 0x02
+    int 0x30
     ret
 ls_dir:
     mov ah, 0x03
@@ -137,8 +152,15 @@ delete_file:
     int 0x22
     ret
 delete_file_flp:
+    cmp byte [fat8], 1
+    je delete_file_flp8
+
     mov ah, 0x04
     int 0x24
+    ret
+delete_file_flp8:
+    mov ah, 0x03
+    int 0x30
     ret
 get_bpb_data:
     mov al, [0x7e00]
@@ -266,12 +288,20 @@ search_for_program:
     mov cx, 11
     rep movsb
     mov si, read_buffer
-    ;call print_buffer
+    ; call print_buffer
+    ; mov di, file_kernel_bin
+    ; call compare_str
+    ; jc exec_kernel
 
     cmp byte [drive_number], 0x80
     jb start_program_flp
 
     int 0x20
+    ret
+exec_kernel:
+    mov si, kernel_exec_err
+    call print_string_red
+    call print_newline
     ret
 print_buffer:
     mov cx, 11
@@ -280,4 +310,39 @@ print_buffer:
     lodsb
     int 0x10
     loop .loop
+    ret
+
+change_dir:
+    call clear_buffer
+    call parse_arg
+
+    cmp byte [drive_number], 0x80
+    jb change_dir_flp
+
+    mov si, read_buffer
+    mov ah, 0x0a
+    int 0x22
+    ret
+change_dir_flp:
+    mov si, read_buffer
+    mov ah, 0x09
+    int 0x24
+    ret
+
+make_dir:
+    call clear_buffer
+    call parse_arg
+
+    mov si, read_buffer
+    mov ah, 0x0a
+    int 0x24
+    ret
+
+delete_dir:
+    call clear_buffer
+    call parse_arg
+
+    mov si, read_buffer
+    mov ah, 0x0b
+    int 0x24
     ret

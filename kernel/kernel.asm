@@ -81,7 +81,6 @@ set_video_mode:
     mov ax, 0x12
     int 0x10
     ret
-
 ;===========================COLORED STRINGS===========================
 
 ;--cyan--
@@ -397,7 +396,11 @@ print_k_suffix:
     popa
     ret
 reboot:
+    ;jmp far 0xffff:0x0000
     int 0x19
+
+    ;mov al, 0xfe   ;hard reset
+    ;out 0x64, al
 rsod:
     mov ax, kernel_seg
     mov ds, ax
@@ -427,6 +430,22 @@ rsod:
     xor ah, ah
     int 0x16
     int 0x19
+shutdown:
+    cli
+
+    ;QEMU
+    mov ax, 0x2000
+    mov dx, 0x604
+    out dx, ax
+
+    ;APM
+    mov ax, 0x5307
+    mov bx, 0x0001
+    mov cx, 0x0003
+    int 0x15
+.halt:
+    hlt
+    jmp .halt
 init_drives:
     xor cx, cx
     mov ah, 0x42
