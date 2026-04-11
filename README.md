@@ -62,7 +62,7 @@ git clone "https://github.com/xiromos/Xiromos"
 
 ## HOW TO USE
 
-To execute any command of program type the name of the command/program into the terminal and press ENTER. If there is any command or program you dont want to execute anymore, press 'q' to return to the terminal. To get a list of the commands type 'help'.
+To execute any command or program type the name of the command/program into the terminal and press ENTER. If there is any command or program you dont want to execute anymore, press 'q' to return to the terminal. To get a list of the commands type 'help'.
 
 
 > Important
