@@ -39,10 +39,8 @@ LSDISK-Command:
 
 CDISK-Command:
 -The CDISK-Command allows you to use multiple disks. To change the disk, 
- type CDISK and then the letter of the disk. A and B are floppies, which the
- system doesnt support yet. C is the root disk, where this OS
- is installed. D and E are external hard drives,
- which you can use to store more data.
+ type CDISK and then the letter of the disk. Floppy disks are marked with
+ the letters A and B. The system supports max. 5 disks at the same time.
 
 To use all these commands simply type it like this: command <args>
 Example: cdisk D / read SYSTEM.TXT
@@ -51,3 +49,9 @@ If you read or write a file, all letters have to be capital and there must be
 a dot between the filename and the extension. The maximum length of the
 filename is 8 characters. The extension has to be always three letters.
 Following characters are forbidden in the name: " / \ [ ] : ; | = , + * ? < >
+
+The system supports FAT16 on hard disks and FAT12 or FAT8 on floppy disks.
+More about FAT8 you can find on this Github page:
+ - https://github.com/xiromos/Xiromos
+
+------------------------------------------------------------------------------

@@ -6,12 +6,15 @@ CPU Recommended: Intel Pentium P5
 RAM Minimum: 1MB
 RAM Recommended: 2MB
 
-Display: 640x480
+Display: 640x480 - 1280x720
+Graphics Adapter Minimum: CGA
+Graphics Adapter Recommended: VGA
 
 Mainboard has to support EDD (Enhanced Disk Drive Services)
 
 Recommended Disk Size: 16MB
-Maximum Disk Size Supported: 4GB
+Maximum Disk Size Supported: 2GB
+Maximum amount of disks: 5 (2 floppies and 3 hard disks)
 
 This system does not support the i8086, even tough it its
 written in 16-Bit assembly.
