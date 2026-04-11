@@ -1,7 +1,7 @@
 ;======================================================
 ;file API for hard disk (LBA)
-;AH = 0x01: search a file in root direcory and then copy the content into a buffer      (filename in SI, output = buffer in DI)
-;AH = 0x02: write a file to the disk and its content to the disk                        (filename in SI, buffer (with content) in DI, length of buffer in CX)
+;AH = 0x01: search a file in root direcory and then copy the content into a buffer      (filename in SI, output buffer in DI)
+;AH = 0x02: write a file to the disk and its content to the disk                        (filename in SI, buffer in DI, length of buffer in CX)
 ;------------------------------------------------------
 ;Copyright (C) 2026 Technodon
 ;======================================================
@@ -104,19 +104,25 @@ copyfile_done:
 
 ;--------------------------write file to the disk--------------------------------------
 api_write_file:
+    push ds
     push si
-    mov [text_length], cx
-    xor ax, ax
-    mov ds, ax
-    mov [buffer_adress], di
     mov ax, kernel_seg
     mov ds, ax
+    mov [buffer_adress], di
+    mov [text_length], cx
 
+    cmp byte [sub_dir], 1
+    je .search_subdir
     xor di, di
     mov es, di
     mov di, 0x500
     mov dx, [root_entries]
-
+    jmp api_search_root
+.search_subdir:
+    mov di, dir_seg
+    mov es, di
+    xor di, di
+    mov dx, 512
 api_search_root:
     mov al, [es:di]
     cmp al, 0x00
@@ -128,25 +134,28 @@ api_search_root:
     dec dx
     jnz api_search_root
 
-    pop di
     pop si
-    mov ax, 0x5000
-    mov es, ax
+    pop ds
+    mov ax, prog_seg
     mov si, no_entries
     call print_string_red
     call print_newline
     iret
 
 .free_entry:
-    mov ax, [es:di+0x1a]
-    mov [fat_cluster], ax
-
     ;calculate clusters
+    ;clusters = (size + cluster_size - 1) / cluster_size
     mov ax, 512
-    div cx
-    mov cx, ax
-    mov ax, [sec_per_cluster]
-    div cx
+    mov bl, [sec_per_cluster]
+    mul bl
+
+    mov bx, ax
+    mov ax, [text_length]
+    add ax, bx
+    dec ax
+
+    xor dx, dx
+    div bx
     mov cx, ax
 
     mov bx, 2       ;cluster 0 and 1 are reserved
@@ -184,6 +193,15 @@ api_search_fat:
     call api_write_sectors
     pop si
 
+    push cx
+    mov ax, 512
+    xor cx, cx
+    mov cl, [sec_per_cluster]
+    mul cl
+    pop cx
+    add [buffer_adress], ax         ;increase buffer adress
+    
+
     dec cx
     jz .done
 
@@ -201,12 +219,19 @@ api_search_fat:
     pop di
     call write_fat
 
-    mov ax, kernel_seg
-    mov ds, ax
+    cmp byte [sub_dir], 1
+    je .write_subdir
+
     xor ax, ax
     mov es, ax
+    jmp .write_entry
+.write_subdir:
+    mov ax, dir_seg
+    mov es, ax
+.write_entry:
 
     pop si
+    pop ds
     mov cx, 11
     push di
     rep movsb
@@ -219,9 +244,18 @@ api_search_fat:
     mov [es:di+0x1c], cx
 
     mov word [es:di+0x1e], 0        ;high word
+
+    cmp byte [sub_dir], 1
+    je .subdir
+
     call write_root
-    mov ax, kernel_seg
+    jmp .end
+.subdir:
+    call write_subdir
+.end:
+    mov ax, prog_seg
     mov es, ax
+    mov ds, ax
     iret
 api_write_sectors:
     mov si, di
@@ -242,8 +276,8 @@ api_write_sectors:
 api_write_disk_error:
     pop si
     pop di
-    mov ax, kernel_seg
-    mov ds, ax
+    pop ds
+    mov ax, prog_seg
     mov es, ax
     call print_newline
     mov si, write_sec_err

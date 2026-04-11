@@ -11,11 +11,19 @@
 ;Copyright (C) 2026 Technodon 
 ;----------------search and read a file--------------
 search_file:
+    cmp byte [sub_dir], 1
+    je .search_subdir
     xor ax, ax
     mov es, ax
     xor dx, dx
     mov dx, word [root_entries]
     mov di, 0x0500          ;search kernel at [ES:DI]
+    jmp search_file_loop
+.search_subdir:
+    mov di, dir_seg
+    mov es, di
+    xor di, di
+    mov dx, 512
 search_file_loop:
     mov cx, 11
     push si
@@ -33,7 +41,16 @@ search_file_done:
     mov di, [es:di+0x01a]
     mov [program_cluster], di
     pop di
+    cmp byte [es:di+0xb], 0x10
+    je .directory
     jmp load_file
+.directory:
+    mov ax, kernel_seg
+    mov es, ax
+    mov si, read_dir_str
+    call print_string_red
+    call print_newline
+    iret
 file_notfound:
     mov ax, kernel_seg
     mov es, ax
@@ -67,18 +84,15 @@ load_file_loop:
     add [program_dap+4], ax                     ;add one cluster to the memory adress
     adc word [program_dap+6], 0                ;increase buffer for next cluster
     mov bx, [program_cluster]                   ;get the cluster-number
-    shl bx, 1                                   ;multiply it by 2, because [cluster] is 16-bit, but a FAT entry is 32bit
+    shl bx, 1                                   ;fat entry is 16bit
     mov ax, [0x3999+bx]                         ;read the value for the next cluster number
     mov [program_cluster], ax                   ;save the value for next cluster
 ;------NOT WORKING------
     ;cmp ax, 2
     ;jb invalid_cluster
     ;cmp ax, 0xFFF8                              ;check if its the last cluster
-    ;jb load_programs_loop
+    ;jb load_file_loop
 ;-----------------------
-    ;mov si, ok_msg
-    ;call print_string_green
-    ;call print_newline
     mov si, file_found_str
     call print_string_green
     call print_newline
@@ -130,10 +144,20 @@ read_file_done:
 ;----------------write a file to the disk------------
 search_entry:
     push si
+
+    cmp byte [sub_dir], 1
+    je .search_subdir
+
     xor ax, ax
     mov es, ax
     mov dx, [root_entries]
     mov di, 0x500
+    jmp search_entry_loop
+.search_subdir:
+    mov di, dir_seg
+    mov es, di
+    xor di, di
+    mov dx, 512
 search_entry_loop:              ;searching the root directory
     mov al, [es:di]             ;for a free entry
     cmp al, 0x00                ;0x00 = free entry
@@ -229,8 +253,15 @@ get_data:
     popa
 write_entry:
     ;write filename attribute
+    cmp byte [sub_dir], 1
+    jne .write_root
+    mov ax, dir_seg
+    mov es, ax
+    jmp .write_entry
+.write_root:
     xor ax, ax
     mov es, ax
+.write_entry:
     pop bx
     pop si
     push bx
@@ -245,7 +276,13 @@ write_entry:
     mov [es:di+0x1c], cx            ;!!!
 
     mov word [es:di+0x1e], 0        ;high word
+    cmp byte [sub_dir], 1
+    je .write_subdir
     call write_root
+    jmp .continue
+.write_subdir:
+    call write_subdir
+.continue:
     mov si, input_buffer
 write_disk:
     pop bx
@@ -341,6 +378,61 @@ write_root_error:
     call print_string_red
     call print_newline
     iret
+
+write_subdir:
+    push di
+    mov di, dir_seg
+    mov es, di
+    xor di, di
+    mov si, dot_str
+    mov dx, 512
+.loop:
+    mov cx, 11
+    push si
+    push di
+    repe cmpsb
+    pop di
+    pop si
+    je .found
+
+    add di, 32
+    dec dx
+    jnz .loop
+
+    pop di
+    pop bx
+    pop bx
+    mov si, no_dot_str
+    call print_string_red
+    call print_newline
+    mov ax, kernel_seg
+    mov es, ax
+    iret
+
+.found:
+    mov ax, [es:di+0x1a]    ;cluster number
+    mov [fat_cluster], ax
+    pop di
+
+    mov [file_dap+4], word 0x0000
+    mov [file_dap+6], word dir_seg
+
+.write_loop:
+    mov ax, [fat_cluster]
+    call cluster_to_sec
+
+    mov [file_dap+8], ax
+    xor ax, ax
+    mov al, [sec_per_cluster]
+    mov [file_dap+2], ax
+
+    mov si, file_dap
+    mov dl, [drive_number]
+    mov ah, 0x43
+    int 0x13
+    jc write_root_error
+    ret
+
 text_length: dw 0
 ;----------------list contents of a directory------------
 get_file_list:
@@ -349,16 +441,33 @@ get_file_list:
     mov dx, [drive_number]
     call print_hex
     call print_newline
+
+    cmp byte [sub_dir], 1
+    je .list_subdir
+
     xor ax, ax
     mov es, ax
     mov di, 0x500
     mov bx, [root_entries]
+    jmp file_list_loop
+
+.list_subdir:
+    mov ax, dir_seg
+    mov es, ax
+    xor di, di
+    jmp list_subdir_loop
 file_list_loop:
     mov al, [es:di]
     cmp al, 0x00
     je empty_entry
     cmp al, 0xe5
     je empty_entry
+    cmp al, ' '
+    je empty_entry
+    cmp al, 0x20
+    jb empty_entry
+    cmp al, 0x7e
+    ja empty_entry
 
     mov ax, [es:di+0x1c]
     mov [ls_size], ax
@@ -399,8 +508,16 @@ file_list_loop:
     mov cx, 3
     call print_spaces
 
+    cmp byte [es:di+0xb], 0x10
+    jne .print_size
+    mov si, dir_str
+    mov bl, 0x02
+    call print_start
+    jmp .print_cluster
+.print_size:
     mov ax, [ls_size]
     call print_decimal
+.print_cluster:
     mov cx, 12
     call print_spaces
     mov si, first_cluster_str
@@ -422,12 +539,94 @@ print_spaces:
     int 0x10
     loop print_spaces
     ret
+list_subdir_loop:
+    mov al, [es:di]
+    cmp al, 0x00
+    je .done
+    cmp al, 0xe5
+    je .empty_entry
+
+    mov ax, [es:di+0x1c]
+    mov [ls_size], ax
+    mov ax, [es:di+0x1a]
+    mov [first_cluster], ax
+    cmp byte [es:di+0x0b], 0x02     ;hidden
+    je .empty_entry
+    push di
+    mov si, di
+    mov di, dir_files_buffer
+    mov ax, kernel_seg
+    mov es, ax
+    mov cx, 8
+    mov ax, dir_seg
+    mov ds, ax
+    rep movsb
+    mov byte [di], 0
+    mov ax, kernel_seg
+    mov ds, ax
+    mov di, extension_files_buffer
+    mov cx, 3
+    mov ax, dir_seg
+    mov ds, ax
+    rep movsb
+    mov byte [di], 0
+    pop di
+
+    mov ax, kernel_seg
+    mov ds, ax
+    
+    mov ax, dir_seg
+    mov es, ax
+    mov si, dir_files_buffer
+    call print_string_white
+    mov ah, 0x0e
+    mov al, '.'
+    int 0x10
+    mov si, extension_files_buffer
+    call print_string_white
+    mov cx, 3
+    call print_spaces
+
+    cmp byte [es:di+0xb], 0x10
+    jne .print_size
+    mov si, dir_str
+    mov bl, 0x02
+    call print_start
+    jmp .print_cluster
+.print_size:
+    mov ax, [ls_size]
+    call print_decimal
+.print_cluster:
+    mov cx, 12
+    call print_spaces
+    mov si, first_cluster_str
+    call print_string_white
+    mov ax, [first_cluster]
+    call print_decimal
+    call print_newline
+.empty_entry:
+    add di, 32
+    dec dx
+    jnz list_subdir_loop
+.done:
+    mov ax, kernel_seg
+    mov es, ax
+    iret
 ;--------------renames a file name----------------
 rename_file_name:
+    cmp byte [sub_dir], 1
+    je .write_subdir
+
     xor ax, ax
     mov es, ax
     mov di, 0x500
     mov dx, [root_entries]
+    jmp search_root
+.write_subdir:
+    mov di, dir_seg
+    mov es, di
+    xor di, di
+    mov dx, 512
 search_root:
     mov cx, 11
     push di
@@ -453,8 +652,18 @@ file_found:
     xor cx, cx
     mov ah, 0x08
     int 0x22
+
+    cmp byte [sub_dir], 1
+    je .write_subdir
+    jmp .write_root
+.write_subdir:
+    mov ax, dir_seg
+    mov es, ax
+    jmp .continue
+.write_root:
     xor ax, ax
     mov es, ax
+.continue:
 
     call print_newline
     
@@ -462,16 +671,32 @@ file_found:
     pop di
     mov cx, 11
     rep movsb
+    cmp byte [sub_dir], 1
+    je .update_subdir
+    jmp .update_root
+.update_subdir:
+    call write_subdir
+    jmp .done
+.update_root:
     call write_root
+.done:
     mov ax, kernel_seg
     mov es, ax
     iret
 ;---------------deletes a file------------------
 search_filename:
+    cmp byte [sub_dir], 1
+    je .search_subdir
     xor ax, ax
     mov es, ax
     mov di, 0x500
     mov dx, [root_entries]
+    jmp search_filename_loop
+.search_subdir:
+    mov di, dir_seg
+    mov es, di
+    xor di, di
+    mov dx, 512
 search_filename_loop:
     mov cx, 11
     push di
@@ -485,14 +710,23 @@ search_filename_loop:
     jnz search_filename_loop
     jmp file_notfound
 delete_object:
+    cmp byte [es:di+0xb], 0x04
+    je del_system_file
     mov byte [es:di], 0xe5      ;deleted file marker
+
+    cmp byte [sub_dir], 1
+    je .write_subdir
+    jmp .write_root
+.write_subdir:
+    call write_subdir
+    jmp .continue
+.write_root:
     call write_root
+.continue:
     mov bx, [es:di+0x1a]
     xor ax, ax
     mov ds, ax
 delete_loop:
-    ;cmp bx, 0x0000
-    ;je delete_loop_done
     mov ax, bx          ;copy cluster into AX
     shl ax, 1
     mov si, fat_offset      ;offset
@@ -513,6 +747,13 @@ delete_loop_done:
     mov si, delete_success
     call print_string_green
     call print_newline
+    iret
+del_system_file:
+    mov si, sys_file_str
+    call print_string_red
+    call print_newline
+    mov ax, kernel_seg
+    mov es, ax
     iret
 ;-----------change drive------------------
 change_drive:
@@ -570,10 +811,6 @@ current_disk:
     call print_newline
     iret
 check_floppies:
-    ; mov si, no_floppy_sup
-    ; call print_string_red
-    ; call print_newline
-    ; iret
     mov ah, 0x01        ;drive number in DI
     int 0x24
     iret
@@ -583,6 +820,7 @@ check_drives:
     mov [external_drive_number], di
     mov dx, di
     call print_hex
+    call print_newline
 
     mov ax, [drives]
     add ax, 0x80
@@ -677,10 +915,12 @@ get_external_bpb:
 disk_loaded:
     mov ax, kernel_seg
     mov es, ax
-    call print_newline
     mov si, disk_loaded_msg
     call print_string_green
     call print_newline
+    mov [current_dir], word 0
+    mov [parent_dir], word 0
+    mov [sub_dir], byte 0
     iret
 disk_change_err:
     call get_bpb_data
@@ -729,4 +969,187 @@ add_spaces_ext:
     inc cx
     jmp add_spaces_ext
 done_parse:
+    iret
+
+;-----------------------change directory----------------------------
+change_directory:
+    mov al, [si]
+    cmp al, '/'
+    je cd_root
+    mov al, [si]
+    cmp al, '-'
+    je cd_parent_dir
+
+    cmp word [sub_dir], 0
+    jne .cd_subdir
+    xor di, di
+    mov es, di
+    mov di, 0x500
+    mov dx, [root_entries]
+    jmp .loop
+
+.cd_subdir:
+    mov di, dir_seg
+    mov es, di
+    xor di, di
+    mov dx, 512
+
+.loop:
+    mov cx, 11
+    push si
+    push di
+    repe cmpsb
+    pop di
+    pop si
+    je .dir_found
+
+    add di, 32
+    dec dx
+    jnz .loop
+
+    mov si, filenotfound
+    call print_string_red
+    call print_newline
+    mov ax, kernel_seg
+    mov es, ax
+    iret
+
+.dir_found:
+    cmp byte [es:di+0xb], 0x10
+    jne .no_dir
+
+    mov ax, [es:di+0x1a]
+    mov [program_cluster], ax
+    jmp load_dir
+
+.no_dir:
+    mov si, no_dir_str
+    call print_string_red
+    call print_newline
+    mov ax, kernel_seg
+    mov es, ax
+    iret
+
+load_dir:
+    mov ax, dir_seg
+    mov es, ax
+    xor di, di
+
+    mov cx, 512
+    xor ax, ax
+    rep stosb
+
+    mov ax, kernel_seg
+    mov es, ax
+
+    mov [file_dap+4], word 0x0000
+    mov [file_dap+6], word dir_seg
+.loop:
+    mov ax, [program_cluster]          ;first cluster of the program
+    call cluster_to_sec                     ;get the first sector
+
+    mov [file_dap+8], ax                 ;set LBA
+    xor bx, bx
+    mov bl, [sec_per_cluster]
+    mov [file_dap+2], bx                 ;number of sectors to read
+
+    mov si, file_dap
+    call read_sectors
+
+    mov cl, [sec_per_cluster]
+    mov ax, 512                                 ;standard size of cluster in FAT16
+    mul cl
+    add [file_dap+4], ax                     ;add one cluster to the memory adress
+    adc word [file_dap+6], 0                ;increase buffer for next cluster
+    mov bx, [program_cluster]                   ;get the cluster-number
+    shl bx, 1
+    xor dx, dx
+    mov ds, dx
+    mov ax, [ds:fat_offset+bx]                         ;read the value for the next cluster number
+    mov [program_cluster], ax                   ;save the value for next cluster
+    mov dx, kernel_seg
+    mov ds, dx
+    cmp ax, 2
+    jb invalid_cluster
+    cmp ax, 0xfff8                              ;check if its the last cluster
+    jb .loop
+    
+
+    mov byte [sub_dir], 1           ;true
+    mov ax, kernel_seg
+    mov es, ax
+    mov si, changed_dir_msg
+    call print_string_green
+    call print_newline
+    iret
+cd_parent_dir:
+    cmp byte [sub_dir], 0
+    je .done
+
+    mov di, dir_seg
+    mov es, di
+    xor di, di
+    mov dx, 512
+    mov si, dot_dot_str
+.loop:
+    mov cx, 2
+    push di
+    push si
+    repe cmpsb
+    pop si
+    pop di
+    je .found
+
+    add di, 32
+    dec dx
+    jnz .loop
+
+    mov ax, kernel_seg
+    mov es, ax
+    mov si, no_entries
+    call print_string_red
+    call print_newline
+    iret
+.found:
+    mov ax, [es:di+0x1a]
+    mov [program_cluster], ax
+    cmp word [es:di+0x1a], 0
+    je cd_root
+
+.load_dir:
+    mov ax, [program_cluster]
+    call cluster_to_sec
+
+    mov [file_dap+8], ax
+    xor cx, cx
+    mov cl, [sec_per_cluster]
+    mov [file_dap+2], cx
+    mov [file_dap+4], word 0x0000
+    mov [file_dap+6], word dir_seg
+
+    mov dl, [drive_number]
+    mov si, file_dap
+    mov ah, 0x42
+    int 0x13
+    jc load_dir_err
+
+    mov cl, [sec_per_cluster]
+    mov ax, 512
+    mul cl
+    add [file_dap+4], ax
+    adc [file_dap+6], 0
+
+    mov bx, [program_cluster]
+    shl bx, 1
+    xor dx, dx
+    mov ds, dx
+    mov ax, [fat_offset+bx]
+    mov dx, kernel_seg
+    mov ds, dx
+    mov [program_cluster], ax
+    cmp ax, 0xfff8
+    jb .load_dir
+.done:
+    mov ax, kernel_seg
+    mov es, ax
     iret
