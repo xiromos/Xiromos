@@ -1,6 +1,8 @@
 ;===============================================
 ;FAT8 Bootloader
 ;Copyright (C) 2026 Technodon
+;expects a 128KB big floppy image
+;uses 8bit FATs
 ;===============================================
 [org 0x7c00]
 bits 16
