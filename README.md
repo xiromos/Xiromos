@@ -1,5 +1,5 @@
 
-# Xiromos - 16 Bit Assembly DOS
+# Xiromos - 16 Bit Assembly OS
 
 Xiromos is a small operating system, written in Assembly entirely from
 scratch. The project is under active development and new commands and functions are continuously updated.
@@ -12,13 +12,13 @@ Xiromos works with a command-line interface and has a lot of commands. It suppor
 
 ## SCREENSHOTS
 
-<img src="assets/startscreen.png" width="45%">
-<img src="assets/multidisk.png" width="45%">
-<img src="assets/scancode.png" width="45%">
-<img src="assets/filesystem.png" width="45%">
-<img src="assets/directories.png" width="45%">
-<img src="assets/programs.png" width="45%">
-<img src="assets/hwinfo.png" width="45%">
+<img src="assets/startscreen.png">
+<img src="assets/multidisk.png">
+<img src="assets/scancode.png">
+<img src="assets/filesystem.png">
+<img src="assets/directories.png">
+<img src="assets/programs.png">
+<img src="assets/hwinfo.png">
 
 ---
 
@@ -65,7 +65,7 @@ git clone "https://github.com/xiromos/Xiromos"
 To execute any command or program type the name of the command/program into the terminal and press ENTER. If there is any command or program you dont want to execute anymore, press 'q' to return to the terminal. To get a list of the commands type 'help'.
 
 
-> Important
+> Important! 
 > Unfortunately this OS doesnt work properly on real hardware. I recommend using it in the emulator QEMU
 ```bash
 qemu-system-i386 -hda disk.img
@@ -75,10 +75,9 @@ qemu-system-i386 -hda disk.img
 
 - PS/2 Mouse driver
 - implement own Assembler
-- fix directory bugs
 - fix the filesystem API
-- make own fonts work
 - maybe FAT32 support
+- fix XFORMAT and LSDISK programs
 
 ## HOW TO USE FAT8<br>
 
@@ -89,3 +88,16 @@ Then you have to write the first sector:<br>
 `dd if=FAT8/boot.asm of=floppy8.img conv=notrunc`<br>
 And in QEMU:<br>
 `qemu-system-i386 -hda disk.img -fda floppy8.img`<br>
+
+
+## HOW TO USE XMODE
+
+If you want to use the XMODE OS on top of Xiromos, do the following steps:
+```bash
+git clone "https://github.com/xiromos/Xiromos"
+git clone "https://github.com/xiromos/XMODE"
+cd Xiromos
+chmod +x build.sh
+./build.sh
+```
+Then just type XMODE into the shell
